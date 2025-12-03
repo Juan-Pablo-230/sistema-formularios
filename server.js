@@ -1068,6 +1068,195 @@ app.delete('/api/admin/usuarios/:id', async (req, res) => {
     }
 });
 
+// ==================== RUTAS DE USUARIO (para perfil) ====================
+app.put('/api/usuarios/perfil', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        console.log('✏️ Actualizando perfil para usuario ID:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado' 
+            });
+        }
+        
+        const { apellidoNombre, legajo, turno, email, password, currentPassword } = req.body;
+        
+        // Validaciones
+        if (!apellidoNombre || !legajo || !turno || !email || !currentPassword) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Todos los campos son requeridos' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar usuario actual
+        const usuarioActual = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuarioActual) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Verificar contraseña actual
+        if (usuarioActual.password !== currentPassword) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Contraseña actual incorrecta' 
+            });
+        }
+        
+        // Verificar si el nuevo legajo o email ya existen (excluyendo el usuario actual)
+        if (legajo !== usuarioActual.legajo || email !== usuarioActual.email) {
+            const usuarioExistente = await db.collection('usuarios').findOne({
+                $and: [
+                    { _id: { $ne: new ObjectId(userHeader) } },
+                    { $or: [
+                        { legajo: legajo.toString() },
+                        { email: email }
+                    ]}
+                ]
+            });
+            
+            if (usuarioExistente) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'El email o legajo ya están registrados por otro usuario' 
+                });
+            }
+        }
+        
+        // Preparar datos para actualizar
+        const updateData = {
+            apellidoNombre,
+            legajo: legajo.toString(),
+            turno,
+            email
+        };
+        
+        // Si se proporciona nueva contraseña, añadirla
+        if (password && password.length >= 6) {
+            updateData.password = password;
+        }
+        
+        // Actualizar usuario
+        const result = await db.collection('usuarios').updateOne(
+            { _id: new ObjectId(userHeader) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Obtener usuario actualizado (sin password)
+        const usuarioActualizado = await db.collection('usuarios').findOne(
+            { _id: new ObjectId(userHeader) },
+            { projection: { password: 0 } }
+        );
+        
+        console.log('✅ Perfil actualizado:', usuarioActualizado.apellidoNombre);
+        
+        res.json({ 
+            success: true, 
+            message: 'Perfil actualizado correctamente',
+            data: usuarioActualizado 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error actualizando perfil:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+app.delete('/api/usuarios/cuenta', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        console.log('🗑️ Eliminando cuenta para usuario ID:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado' 
+            });
+        }
+        
+        const { currentPassword } = req.body;
+        
+        if (!currentPassword) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'La contraseña actual es requerida' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar usuario
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Verificar contraseña
+        if (usuario.password !== currentPassword) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Contraseña incorrecta' 
+            });
+        }
+        
+        // Eliminar usuario
+        const result = await db.collection('usuarios').deleteOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        console.log('✅ Cuenta eliminada:', usuario.apellidoNombre);
+        
+        res.json({ 
+            success: true, 
+            message: 'Cuenta eliminada correctamente' 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error eliminando cuenta:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
 // ==================== INICIALIZACIÓN DE BASE DE DATOS ====================
 app.get('/api/init-db', async (req, res) => {
     try {
