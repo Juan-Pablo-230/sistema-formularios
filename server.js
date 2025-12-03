@@ -14,7 +14,73 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ==================== RUTAS DE DIAGNÓSTICO ====================
+// ==================== RUTAS DE DIAGNÓSTICO MEJORADAS ====================
+
+// Test de conexión directa a MongoDB
+app.get('/api/test-connection', async (req, res) => {
+    try {
+        console.log('🧪 Test de conexión directa a MongoDB');
+        
+        if (!process.env.MONGODB_URI) {
+            return res.json({
+                success: false,
+                message: 'MONGODB_URI no definida',
+                step: 'check_env',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        // Mostrar URI enmascarada
+        const maskedURI = process.env.MONGODB_URI.replace(
+            /mongodb\+srv:\/\/[^:]+:[^@]+@/, 
+            'mongodb+srv://***:***@'
+        );
+        
+        // Crear nueva conexión temporal
+        const { MongoClient } = require('mongodb');
+        const client = new MongoClient(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000
+        });
+        
+        console.log('⏳ Intentando conexión temporal...');
+        await client.connect();
+        console.log('✅ Conexión temporal exitosa');
+        
+        await client.db().admin().command({ ping: 1 });
+        console.log('✅ Ping exitoso');
+        
+        // Listar bases de datos
+        const databases = await client.db().admin().listDatabases();
+        console.log('📊 Bases de datos disponibles:', databases.databases.map(db => db.name));
+        
+        await client.close();
+        
+        res.json({
+            success: true,
+            message: '✅ Conexión a MongoDB exitosa',
+            canConnect: true,
+            databases: databases.databases.map(db => db.name),
+            uriMasked: maskedURI,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en test de conexión:', error.message);
+        res.json({
+            success: false,
+            message: '❌ Error conectando a MongoDB',
+            error: error.message,
+            canConnect: false,
+            uriMasked: process.env.MONGODB_URI ? process.env.MONGODB_URI.replace(
+                /mongodb\+srv:\/\/[^:]+:[^@]+@/, 
+                'mongodb+srv://***:***@'
+            ) : null,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Debug detallado de base de datos
 app.get('/api/debug/db', async (req, res) => {
     try {
         console.log('=== DEBUG DATABASE ===');
@@ -23,22 +89,23 @@ app.get('/api/debug/db', async (req, res) => {
         const hasUri = !!process.env.MONGODB_URI;
         console.log('MONGODB_URI definida:', hasUri);
         
+        let maskedUri = null;
         if (hasUri) {
-            // Mostrar URI (enmascarada)
-            const maskedUri = process.env.MONGODB_URI.replace(
+            maskedUri = process.env.MONGODB_URI.replace(
                 /mongodb\+srv:\/\/[^:]+:[^@]+@/, 
                 'mongodb+srv://***:***@'
             );
-            console.log('URI (masked):', maskedUri);
+            console.log('URI (enmascarada):', maskedUri);
         }
         
         // Intentar conexión
         const { mongoDB } = require('./database');
         const isConnected = mongoDB.isConnected;
         console.log('DB isConnected:', isConnected);
+        console.log('Connection attempts:', mongoDB.connectionAttempts);
         
-        if (isConnected) {
-            const db = getDB();
+        if (isConnected && mongoDB.client) {
+            const db = mongoDB.client.db('test');
             await db.command({ ping: 1 });
             
             // Listar bases de datos
@@ -51,12 +118,14 @@ app.get('/api/debug/db', async (req, res) => {
                 details: {
                     hasUri: hasUri,
                     isConnected: isConnected,
+                    connectionAttempts: mongoDB.connectionAttempts,
                     databases: databases.databases.map(db => db.name),
-                    uriMasked: hasUri ? process.env.MONGODB_URI.replace(
-                        /mongodb\+srv:\/\/[^:]+:[^@]+@/, 
-                        'mongodb+srv://***:***@'
-                    ) : null
-                }
+                    uriMasked: maskedUri,
+                    clientInfo: {
+                        isConnected: mongoDB.client.topology?.isConnected() || false
+                    }
+                },
+                timestamp: new Date().toISOString()
             });
         } else {
             res.json({
@@ -65,8 +134,11 @@ app.get('/api/debug/db', async (req, res) => {
                 details: {
                     hasUri: hasUri,
                     isConnected: isConnected,
-                    error: 'La conexión no está establecida. Llama a connectToDatabase() primero.'
-                }
+                    connectionAttempts: mongoDB.connectionAttempts,
+                    uriMasked: maskedUri,
+                    error: 'La conexión no está establecida.'
+                },
+                timestamp: new Date().toISOString()
             });
         }
         
@@ -76,10 +148,58 @@ app.get('/api/debug/db', async (req, res) => {
             success: false,
             message: 'Error en debug',
             error: error.message,
-            stack: error.stack
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+            timestamp: new Date().toISOString()
         });
     }
 });
+
+// Reconnect DB manualmente
+app.post('/api/admin/reconnect-db', async (req, res) => {
+    try {
+        console.log('🔄 Solicitando reconexión a MongoDB...');
+        
+        // Cerrar conexión existente si hay
+        const { mongoDB } = require('./database');
+        if (mongoDB.isConnected && mongoDB.client) {
+            await mongoDB.close();
+            console.log('✅ Conexión anterior cerrada');
+        }
+        
+        // Resetear contador de intentos
+        mongoDB.connectionAttempts = 0;
+        
+        // Intentar reconectar
+        await connectToDatabase();
+        console.log('✅ Reconexión exitosa');
+        
+        // Verificar
+        const db = getDB('test');
+        await db.command({ ping: 1 });
+        
+        res.json({
+            success: true,
+            message: '✅ Reconexión a MongoDB exitosa',
+            isConnected: mongoDB.isConnected,
+            connectionAttempts: mongoDB.connectionAttempts,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en reconexión:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error en reconexión',
+            error: error.message,
+            details: {
+                mongodbUri: process.env.MONGODB_URI ? 'DEFINED' : 'NOT DEFINED',
+                connectionAttempts: require('./database').mongoDB.connectionAttempts
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // ==================== RUTAS DE HEALTH CHECK ====================
 app.get('/api/health', (req, res) => {
     res.json({ 
@@ -107,23 +227,121 @@ app.get('/api/health-complete', async (req, res) => {
     }
 });
 
-// ==================== MIDDLEWARE DE AUTENTICACIÓN ====================
-const authenticate = async (req, res, next) => {
+// ==================== RUTAS DE AUTENTICACIÓN ====================
+app.post('/api/auth/login', async (req, res) => {
     try {
-        const userId = req.headers['user-id'];
-        if (!userId) return res.status(401).json({ success: false, message: 'No autenticado' });
-
+        console.log('🔐 LOGIN ATTEMPT - DEBUG INFO:');
+        console.log('Request body:', req.body);
+        console.log('MONGODB_URI defined:', !!process.env.MONGODB_URI);
+        
+        const { identifier, password } = req.body;
+        
+        // DEBUG: Verificar estado de conexión primero
+        const { mongoDB } = require('./database');
+        console.log('DB Connection state:', {
+            isConnected: mongoDB.isConnected,
+            attempts: mongoDB.connectionAttempts,
+            hasClient: !!mongoDB.client
+        });
+        
+        // Si no hay conexión, intentar reconectar automáticamente
+        if (!mongoDB.isConnected) {
+            console.log('⚠️ No hay conexión activa, intentando reconectar...');
+            try {
+                await connectToDatabase();
+                console.log('✅ Reconexión automática exitosa');
+            } catch (reconnectError) {
+                console.error('❌ No se pudo reconectar:', reconnectError.message);
+                return res.status(503).json({ 
+                    success: false, 
+                    message: 'Servicio de base de datos no disponible',
+                    error: 'No se pudo conectar a la base de datos'
+                });
+            }
+        }
+        
         const db = getDB();
-        const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(userId) });
-        if (!usuario) return res.status(401).json({ success: false, message: 'Usuario no encontrado' });
+        
+        // Verificar si hay usuarios en la base de datos
+        const userCount = await db.collection('usuarios').countDocuments();
+        console.log('Total users in DB:', userCount);
+        
+        // Si no hay usuarios, crear uno por defecto (solo primera vez)
+        if (userCount === 0) {
+            console.log('⚠️ No users found, creating default admin...');
+            const defaultUser = {
+                apellidoNombre: "Administrador",
+                legajo: "admin",
+                email: "admin@example.com",
+                turno: "Turno mañana",
+                password: "admin123",
+                role: "admin",
+                fechaRegistro: new Date(),
+                ultimaActualizacion: new Date()
+            };
+            
+            await db.collection('usuarios').insertOne(defaultUser);
+            console.log('✅ Default admin user created');
+            
+            // Permitir login con credenciales por defecto
+            if ((identifier === "admin" || identifier === "admin@example.com") && password === "admin123") {
+                const { password: _, ...userWithoutPass } = defaultUser;
+                return res.json({ 
+                    success: true, 
+                    message: 'Login exitoso con usuario por defecto', 
+                    data: userWithoutPass 
+                });
+            }
+        }
+        
+        // Buscar usuario normal
+        const usuario = await db.collection('usuarios').findOne({
+            $or: [
+                { email: identifier },
+                { legajo: identifier }
+            ]
+        });
 
-        req.usuario = usuario;
-        next();
+        console.log('User found:', usuario ? 'YES' : 'NO');
+        
+        if (!usuario || usuario.password !== password) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Credenciales incorrectas',
+                hint: userCount === 0 ? 'No hay usuarios registrados. Use admin/admin123' : ''
+            });
+        }
+
+        const { password: _, ...usuarioSinPassword } = usuario;
+        res.json({ 
+            success: true, 
+            message: 'Login exitoso', 
+            data: usuarioSinPassword 
+        });
+
     } catch (error) {
-        console.error('Error en autenticación:', error);
-        res.status(401).json({ success: false, message: 'Error de autenticación', error: error.message });
+        console.error('❌ Error en login DETAILED:');
+        console.error('- Message:', error.message);
+        console.error('- Stack:', error.stack);
+        
+        // Error específico de conexión a DB
+        if (error.message.includes('No hay conexión a la base de datos')) {
+            return res.status(503).json({ 
+                success: false, 
+                message: 'Servicio de base de datos no disponible',
+                error: error.message,
+                recoveryHint: 'Intente reconectar en /api/admin/reconnect-db'
+            });
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
     }
-};
+});
 
 // ==================== RUTAS DE AUTENTICACIÓN ====================
 app.post('/api/auth/login', async (req, res) => {
@@ -864,42 +1082,85 @@ app.use('*', (req, res) => {
 // ==================== INICIALIZAR SERVIDOR ====================
 async function initializeServer() {
     try {
-        console.log('🔧 Inicializando servidor...');
+        console.log('🔧 ========== INICIANDO SERVIDOR ==========');
+        console.log('📋 Variables de entorno disponibles:');
+        console.log('- PORT:', process.env.PORT || 3000);
+        console.log('- MONGODB_URI:', process.env.MONGODB_URI ? 'DEFINIDA' : 'NO DEFINIDA');
+        console.log('- NODE_ENV:', process.env.NODE_ENV || 'development');
         
-        // CONEXIÓN A MONGODB (obligatoria)
+        // Verificar MONGODB_URI en detalle
+        if (process.env.MONGODB_URI) {
+            const uri = process.env.MONGODB_URI;
+            console.log('📏 Longitud URI:', uri.length);
+            
+            // Mostrar URI enmascarada
+            try {
+                const masked = uri.replace(
+                    /mongodb\+srv:\/\/([^:]+):([^@]+)@/, 
+                    'mongodb+srv://$1:****@'
+                );
+                console.log('🎭 URI (enmascarada):', masked);
+            } catch (e) {
+                console.log('⚠️ Error enmascarando URI');
+            }
+        }
+        
+        // CONEXIÓN A MONGODB
+        console.log('\n🔄 Intentando conectar a MongoDB...');
         try {
-            console.log('🔄 Conectando a MongoDB...');
             await connectToDatabase();
             console.log('✅ MongoDB conectado exitosamente');
             
-            // Verificar conexión funcionando
-            const db = getDB();
+            // Verificar que realmente funciona
+            const db = getDB('test');
             await db.command({ ping: 1 });
             console.log('✅ Ping a MongoDB exitoso');
             
-        } catch (dbError) {
-            console.error('❌ ERROR CRÍTICO: No se pudo conectar a MongoDB');
-            console.error('Detalles:', dbError.message);
+            // Verificar/crear colección de material
+            const collections = await db.listCollections({ name: 'material' }).toArray();
+            if (collections.length === 0) {
+                console.log('📝 Creando colección "material"...');
+                await db.createCollection('material');
+                await db.collection('material').createIndex({ usuarioId: 1, clase: 1 });
+                await db.collection('material').createIndex({ fechaSolicitud: -1 });
+                console.log('✅ Colección "material" creada');
+            }
             
-            // Crear un DB mock para development/testing
-            console.warn('⚠️ Usando modo fallback (sin base de datos)');
-            // Continuar sin DB para debugging
+        } catch (dbError) {
+            console.error('❌ ERROR conectando a MongoDB:');
+            console.error('- Mensaje:', dbError.message);
+            console.error('- Código:', dbError.code || 'N/A');
+            console.error('- Nombre:', dbError.name);
+            
+            if (dbError.message.includes('ENOTFOUND') || dbError.message.includes('getaddrinfo')) {
+                console.error('⚠️ Problema de DNS. Verifica el hostname del cluster.');
+            } else if (dbError.message.includes('authentication') || dbError.message.includes('bad auth')) {
+                console.error('⚠️ Error de autenticación. Verifica usuario/contraseña.');
+            } else if (dbError.message.includes('timed out')) {
+                console.error('⚠️ Timeout. Verifica Network Access en MongoDB Atlas.');
+            }
+            
+            console.warn('⚠️ Continuando sin conexión a base de datos - Las rutas fallarán');
         }
-
+        
+        console.log('\n🚀 Iniciando servidor Express...');
+        
         const server = app.listen(PORT, '0.0.0.0', () => {
-            console.log('=================================');
-            console.log('🚀 SERVICIOS DISPONIBLES:');
+            console.log('==========================================');
+            console.log('🚀 SERVIDOR INICIADO CORRECTAMENTE');
             console.log(`🔧 Puerto: ${PORT}`);
             console.log(`🌍 Health Check: /api/health`);
-            console.log(`🔧 Test DB: /api/debug/db`);
-            console.log(`🔧 Test GET: /api/test/simple`);
-            console.log(`🔧 Test POST: /api/test/simple`);
-            console.log('=================================');
+            console.log(`🐛 Test Connection: /api/test-connection`);
+            console.log(`🔧 Debug DB: /api/debug/db`);
+            console.log(`🔧 Test Simple: /api/test/simple`);
+            console.log(`🔧 Reconnect DB: /api/admin/reconnect-db`);
+            console.log('==========================================');
         });
 
         return server;
     } catch (error) {
         console.error('❌ ERROR CRÍTICO iniciando servidor:', error);
+        console.error('Stack:', error.stack);
         process.exit(1);
     }
 }
