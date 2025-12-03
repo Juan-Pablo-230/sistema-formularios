@@ -22,6 +22,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+// ==================== RUTAS DE DIAGNÓSTICO ====================
+console.log('=== ENVIRONMENT VARIABLES CHECK ===');
+console.log('MONGODB_URI defined:', !!process.env.MONGODB_URI);
+console.log('MONGODB_URI length:', process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0);
+
 // ==================== RUTAS DE HEALTH CHECK ====================
 app.get('/api/health', (req, res) => {
     console.log('🏥 Health check request recibido');
@@ -43,10 +48,40 @@ app.get('/api/test/simple', (req, res) => {
     });
 });
 
+app.get('/api/debug/routes', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Rutas API disponibles',
+        routes: [
+            '/api/health',
+            '/api/test/simple',
+            '/api/init-db',
+            '/api/auth/login (POST)',
+            '/api/auth/register (POST)',
+            '/api/auth/check-legajo/:legajo',
+            '/api/inscripciones',
+            '/api/inscripciones/verificar/:usuarioId/:clase',
+            '/api/material/solicitudes',
+            '/api/admin/usuarios',
+            '/api/debug/mongo',
+            '/api/env-check'
+        ],
+        timestamp: new Date().toISOString()
+    });
+});
+
+app.get('/api/env-check', (req, res) => {
+    res.json({
+        mongoDB_URI: process.env.MONGODB_URI ? 'DEFINED' : 'NOT DEFINED',
+        mongoDB_URI_length: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
+        allVariables: Object.keys(process.env).sort()
+    });
+});
+
 // ==================== RUTAS DE AUTENTICACIÓN ====================
 app.post('/api/auth/login', async (req, res) => {
     try {
-        console.log('🔐 Intento de login recibido:', req.body);
+        console.log('🔐 Intento de login recibido:', { identifier: req.body.identifier });
         const { identifier, password } = req.body;
         
         if (!identifier || !password) {
@@ -56,7 +91,7 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
         
-        const db = await mongoDB.getDatabaseSafe('formulario'); // Cambia 'usuario' por 'formulario'
+        const db = await mongoDB.getDatabaseSafe('formulario');
         
         // Buscar usuario por email o legajo
         const usuario = await db.collection('usuarios').findOne({
@@ -75,7 +110,7 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        // Verificar contraseña (en texto plano por ahora - considerar bcrypt para producción)
+        // Verificar contraseña
         if (usuario.password !== password) {
             return res.status(401).json({ 
                 success: false, 
@@ -138,7 +173,7 @@ app.post('/api/auth/register', async (req, res) => {
             legajo: legajo.toString(),
             turno,
             email,
-            password, // En producción usar bcrypt para hashear
+            password,
             role,
             fechaRegistro: new Date()
         };
@@ -236,12 +271,37 @@ app.post('/api/inscripciones', async (req, res) => {
 app.get('/api/inscripciones/verificar/:usuarioId/:clase', async (req, res) => {
     try {
         const { usuarioId, clase } = req.params;
+        
+        console.log('🔍 Verificando inscripción para:', { usuarioId, clase });
+        
         const db = await mongoDB.getDatabaseSafe('formulario');
         
+        // Primero intentar como ObjectId
+        let objectId;
+        if (ObjectId.isValid(usuarioId)) {
+            objectId = new ObjectId(usuarioId);
+        } else {
+            // Si no es ObjectId válido, buscar por legajo
+            const usuario = await db.collection('usuarios').findOne({ 
+                legajo: usuarioId.toString() 
+            });
+            
+            if (!usuario) {
+                return res.json({ 
+                    success: true, 
+                    data: { exists: false } 
+                });
+            }
+            
+            objectId = usuario._id;
+        }
+        
         const inscripcionExistente = await db.collection('inscripciones').findOne({
-            usuarioId: new ObjectId(usuarioId),
+            usuarioId: objectId,
             clase: decodeURIComponent(clase)
         });
+        
+        console.log('📊 Inscripción existe:', !!inscripcionExistente);
         
         res.json({ 
             success: true, 
@@ -286,8 +346,7 @@ app.get('/api/inscripciones', async (req, res) => {
         console.error('❌ Error obteniendo inscripciones:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
+            message: 'Error interno del servidor' 
         });
     }
 });
@@ -296,10 +355,14 @@ app.get('/api/inscripciones', async (req, res) => {
 app.post('/api/material/solicitudes', async (req, res) => {
     try {
         const userHeader = req.headers['user-id'];
+        
+        console.log('📦 POST /material/solicitudes - Headers user-id:', userHeader);
+        
         if (!userHeader) {
+            console.error('❌ No hay user-id en headers');
             return res.status(401).json({ 
                 success: false, 
-                message: 'No autenticado' 
+                message: 'No autenticado - Falta user-id en headers' 
             });
         }
         
@@ -347,14 +410,33 @@ app.post('/api/material/solicitudes', async (req, res) => {
 app.get('/api/material/solicitudes', async (req, res) => {
     try {
         const userHeader = req.headers['user-id'];
+        
+        console.log('📦 GET /material/solicitudes - Headers user-id:', userHeader);
+        
         if (!userHeader) {
+            console.error('❌ No hay user-id en headers');
             return res.status(401).json({ 
                 success: false, 
-                message: 'No autenticado' 
+                message: 'No autenticado - Falta user-id en headers' 
             });
         }
         
         const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Validar que el usuario existe
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario) {
+            console.error('❌ Usuario no encontrado con ID:', userHeader);
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        console.log('✅ Usuario válido:', usuario.apellidoNombre);
         
         // Obtener solicitudes del usuario
         const solicitudes = await db.collection('material')
@@ -373,6 +455,8 @@ app.get('/api/material/solicitudes', async (req, res) => {
                 { $unwind: '$usuario' }
             ])
             .toArray();
+        
+        console.log(`📊 Encontradas ${solicitudes.length} solicitudes`);
         
         res.json({ 
             success: true, 
@@ -407,6 +491,107 @@ app.get('/api/admin/usuarios', async (req, res) => {
         console.error('❌ Error obteniendo usuarios:', error);
         res.status(500).json({ 
             success: false, 
+            message: 'Error interno del servidor' 
+        });
+    }
+});
+
+app.post('/api/admin/usuarios', async (req, res) => {
+    try {
+        const { apellidoNombre, legajo, turno, email, password, role = 'user' } = req.body;
+        
+        if (!apellidoNombre || !legajo || !turno || !email || !password) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Todos los campos son requeridos' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar si el usuario ya existe
+        const usuarioExistente = await db.collection('usuarios').findOne({
+            $or: [
+                { email: email },
+                { legajo: legajo.toString() }
+            ]
+        });
+        
+        if (usuarioExistente) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'El email o legajo ya están registrados' 
+            });
+        }
+        
+        // Crear nuevo usuario
+        const nuevoUsuario = {
+            apellidoNombre,
+            legajo: legajo.toString(),
+            turno,
+            email,
+            password,
+            role,
+            fechaRegistro: new Date()
+        };
+        
+        const result = await db.collection('usuarios').insertOne(nuevoUsuario);
+        
+        // Remover password de la respuesta
+        const { password: _, ...usuarioCreado } = nuevoUsuario;
+        usuarioCreado._id = result.insertedId;
+        
+        res.json({ 
+            success: true, 
+            message: 'Usuario creado exitosamente', 
+            data: usuarioCreado 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error creando usuario:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+app.put('/api/admin/usuarios/:id/rol', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.body;
+        
+        if (!['admin', 'advanced', 'user'].includes(role)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Rol inválido' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        const result = await db.collection('usuarios').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { role: role } }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Rol actualizado correctamente' 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error actualizando rol:', error);
+        res.status(500).json({ 
+            success: false, 
             message: 'Error interno del servidor',
             error: error.message 
         });
@@ -434,14 +619,17 @@ app.get('/api/init-db', async (req, res) => {
                 if (collectionName === 'usuarios') {
                     await db.collection(collectionName).createIndex({ email: 1 }, { unique: true });
                     await db.collection(collectionName).createIndex({ legajo: 1 }, { unique: true });
+                    console.log(`✅ Índices creados para "${collectionName}"`);
                 } else if (collectionName === 'inscripciones') {
                     await db.collection(collectionName).createIndex({ usuarioId: 1, clase: 1 }, { unique: true });
+                    console.log(`✅ Índices creados para "${collectionName}"`);
                 } else if (collectionName === 'material') {
                     await db.collection(collectionName).createIndex({ usuarioId: 1, clase: 1 });
                     await db.collection(collectionName).createIndex({ fechaSolicitud: -1 });
+                    console.log(`✅ Índices creados para "${collectionName}"`);
                 }
                 
-                console.log(`✅ Colección "${collectionName}" creada con índices`);
+                console.log(`✅ Colección "${collectionName}" creada`);
             } else {
                 console.log(`✅ Colección "${collectionName}" ya existe`);
             }
@@ -455,13 +643,31 @@ app.get('/api/init-db', async (req, res) => {
                 legajo: '99999',
                 turno: 'Turno mañana',
                 email: 'admin@example.com',
-                password: 'admin123', // Cambiar en producción
+                password: 'admin123',
                 role: 'admin',
                 fechaRegistro: new Date()
             };
             
             await db.collection('usuarios').insertOne(adminUser);
             console.log('✅ Usuario admin creado por defecto');
+        }
+        
+        // Crear clase por defecto si no existe
+        const claseExists = await db.collection('clases').findOne({ 
+            nombre: 'Aislamientos y casos clínicos' 
+        });
+        if (!claseExists) {
+            const clase = {
+                nombre: "Aislamientos y casos clínicos",
+                descripcion: "Lic. Romina Seminario, Lic. Mirta Díaz",
+                fechaClase: new Date('2025-12-04'),
+                fechaCierre: new Date('2025-12-04T10:00:00'),
+                activa: true,
+                instructores: ["Lic. Romina Seminario", "Lic. Mirta Díaz"]
+            };
+            
+            await db.collection('clases').insertOne(clase);
+            console.log('✅ Clase creada por defecto');
         }
         
         res.json({ 

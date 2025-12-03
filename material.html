@@ -206,73 +206,58 @@
             });
         }
 
-        async enviarSolicitud() {
-            const clase = document.getElementById('claseSeleccionada').value;
-            const email = document.getElementById('emailUsuario').value;
+async enviarSolicitud() {
+    const clase = document.getElementById('claseSeleccionada').value;
+    const email = document.getElementById('emailUsuario').value;
 
-            if (!clase) {
-                this.mostrarError('Por favor, seleccione una clase');
-                return;
-            }
+    if (!clase) {
+        this.mostrarError('Por favor, seleccione una clase');
+        return;
+    }
 
-            // Verificar si ya solicitó esta clase
-            if (this.solicitudes.some(s => s.clase === clase)) {
-                this.mostrarError('Ya ha solicitado material para esta clase');
-                return;
-            }
+    // Verificar si ya solicitó esta clase
+    if (this.solicitudes.some(s => s.clase === clase)) {
+        this.mostrarError('Ya ha solicitado material para esta clase');
+        return;
+    }
 
-            try {
-                const user = authSystem.getCurrentUser();
-                if (!user || !user._id) {
-                    this.mostrarError('Error: Usuario no autenticado correctamente');
-                    return;
-                }
-
-                const solicitudData = {
-                    clase: clase,
-                    email: email
-                };
-
-                console.log('📤 Enviando solicitud:', solicitudData);
-                console.log('👤 ID de usuario:', user._id);
-                
-                const response = await fetch(`${this.apiBaseUrl}/material/solicitudes`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'user-id': user._id
-                    },
-                    body: JSON.stringify(solicitudData)
-                });
-
-                console.log('📊 Status de respuesta:', response.status, response.statusText);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('❌ Error del servidor:', errorText);
-                    throw new Error(`Error ${response.status}: ${errorText.substring(0, 100)}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ Resultado del servidor:', result);
-
-                if (result.success) {
-                    this.mostrarExito('✅ Solicitud enviada correctamente');
-                    
-                    // Limpiar formulario
-                    document.getElementById('claseSeleccionada').value = '';
-                    
-                    // Recargar mis solicitudes
-                    await this.cargarMisSolicitudes();
-                    
-                } else {
-                    this.mostrarError(result.message || 'Error al enviar la solicitud');
-                }
-            } catch (error) {
-                console.error('❌ Error enviando solicitud:', error);
-                this.mostrarError('Error: ' + error.message);
-            }
+    try {
+        const user = authSystem.getCurrentUser();
+        if (!user || !user._id) {
+            this.mostrarError('Error: Usuario no autenticado correctamente');
+            return;
         }
+
+        const solicitudData = {
+            clase: clase,
+            email: email
+        };
+
+        console.log('📤 Enviando solicitud:', solicitudData);
+        console.log('👤 ID de usuario:', user._id);
+        
+        // Usar authSystem.makeRequest directamente
+        const result = await authSystem.makeRequest('/material/solicitudes', solicitudData);
+        
+        console.log('✅ Resultado del servidor:', result);
+
+        if (result.success) {
+            this.mostrarExito('✅ Solicitud enviada correctamente');
+            
+            // Limpiar formulario
+            document.getElementById('claseSeleccionada').value = '';
+            
+            // Recargar mis solicitudes
+            await this.cargarMisSolicitudes();
+            
+        } else {
+            this.mostrarError(result.message || 'Error al enviar la solicitud');
+        }
+    } catch (error) {
+        console.error('❌ Error enviando solicitud:', error);
+        this.mostrarError('Error: ' + error.message);
+    }
+}
 
         mostrarExito(mensaje) {
             this.mostrarMensaje(mensaje, 'success');

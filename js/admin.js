@@ -67,23 +67,32 @@ class AdminSystem {
         }
     }
 
-    async loadSolicitudesMaterial() {
-        try {
-            console.log('📥 Cargando solicitudes de material...');
-            
-            const result = await authSystem.makeRequest('/material/solicitudes', null, 'GET');
-            
-            this.solicitudesMaterialData = result.data || [];
-            console.log('✅ Solicitudes de material cargadas:', this.solicitudesMaterialData.length);
-            
-            return this.solicitudesMaterialData;
-            
-        } catch (error) {
-            console.error('❌ Error cargando solicitudes de material:', error);
+async loadSolicitudesMaterial() {
+    try {
+        console.log('📥 Cargando solicitudes de material...');
+        
+        const user = authSystem.getCurrentUser();
+        if (!user || !user._id) {
+            console.error('❌ No hay usuario logueado para cargar solicitudes');
             this.solicitudesMaterialData = [];
             return [];
         }
+        
+        console.log('👤 Usuario actual para cargar solicitudes:', user._id);
+        
+        const result = await authSystem.makeRequest('/material/solicitudes', null, 'GET');
+        
+        this.solicitudesMaterialData = result.data || [];
+        console.log('✅ Solicitudes de material cargadas:', this.solicitudesMaterialData.length);
+        
+        return this.solicitudesMaterialData;
+        
+    } catch (error) {
+        console.error('❌ Error cargando solicitudes de material:', error);
+        this.solicitudesMaterialData = [];
+        return [];
     }
+}
 
     async initMaterialData() {
         try {

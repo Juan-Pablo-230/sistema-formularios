@@ -11,11 +11,19 @@ class AuthSystem {
 
     async makeRequest(endpoint, data = null, method = 'POST') {
         try {
+            const user = this.getCurrentUser();
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            
+            // Añadir user-id si el usuario está logueado
+            if (user && user._id) {
+                headers['user-id'] = user._id;
+            }
+            
             const options = {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                }
+                headers: headers
             };
             
             if (data && method !== 'GET') {
@@ -23,11 +31,23 @@ class AuthSystem {
             }
             
             console.log('🌐 Haciendo request a:', `${this.apiBaseUrl}${endpoint}`);
-            const response = await fetch(`${this.apiBaseUrl}${endpoint}`, options);
-            const result = await response.json();
+            console.log('👤 User ID en headers:', user?._id || 'No logueado');
             
-            if (!result.success) {
-                throw new Error(result.message);
+            const response = await fetch(`${this.apiBaseUrl}${endpoint}`, options);
+            
+            const contentType = response.headers.get('content-type');
+            let result;
+            
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                console.error('❌ Respuesta no es JSON:', text.substring(0, 200));
+                throw new Error(`El servidor devolvió: ${response.status} ${response.statusText}`);
+            }
+            
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || `Error ${response.status}`);
             }
             
             return result;
@@ -57,11 +77,6 @@ class AuthSystem {
             
             this.currentUser = result.data;
             localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-            
-            if (this.isAdmin() || this.isAdvancedUser()) {
-                window.location.href = '/admin/dashboard.html';
-                return user;
-            }
             
             console.log('✅ Login exitoso MongoDB:', this.currentUser.apellidoNombre);
             return this.currentUser;
@@ -149,7 +164,7 @@ class AuthSystem {
         return roles[role] || '👤 Usuario';
     }
 
-    // MÉTODO DE LOGIN MODAL (se mantiene igual)
+    // MÉTODO DE LOGIN MODAL
     showLoginModal() {
         if (this.isLoggedIn()) return Promise.resolve(this.currentUser);
         

@@ -22,6 +22,8 @@ class SistemaFormularios {
             }
             
             console.log('🌐 Haciendo request a:', `${this.apiBaseUrl}${endpoint}`);
+            console.log('👤 User ID:', user?._id || 'No logueado');
+            
             const response = await fetch(`${this.apiBaseUrl}${endpoint}`, options);
             const result = await response.json();
             
