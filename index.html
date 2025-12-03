@@ -27,6 +27,17 @@
                             <button id="logoutBtn" class="logout-btn">🚪 Cerrar Sesión</button>
                         </div>
                     </div>
+                    
+                    <!-- Sección para usuarios no logueados -->
+                    <div id="guestInfo" class="guest-info" style="display: none;">
+                        <div class="guest-welcome">
+                            <span>👤 Invitado</span>
+                        </div>
+                        <div class="guest-actions">
+                            <button id="loginBtn" class="login-btn">🔑 Iniciar Sesión</button>
+                            <button id="registerBtn" class="register-btn">📝 Registrarse</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -42,7 +53,7 @@
         <div class="classes-grid">
             <div class="class-card" onclick="window.location.href='/Aislamientos/index.html'">
                 <h3>Aislamientos y casos clínicos</h3>
-                <p>Lic. Romina Seminario, Lic. Mirta Díaz</p>
+                <p>Lic. Mónica rojas, Lic. Veronica Anzaldo</p>
                 <span class="class-date">Clase dia 04/12/2025</span>
             </div>
 
@@ -51,10 +62,9 @@
                 <p>Por este medio solo podras solicitar material de clase, no es valido como formulario de asistencia</p>
                 <span class="class-date">Clase dia 04/12/2025</span>
             </div>
-
         </div>
 
-                <!-- Sección de Video -->
+        <!-- Sección de Video -->
         <div class="video-section">
             <div class="video-container">
                 <div class="video-header">
@@ -75,8 +85,6 @@
         </div>
 
     </div> <!-- Cierre del container -->
-
-    </div>
 
     <div id="updateProfileModal" class="modal-overlay" style="display: none;">
         <div class="modal-container">

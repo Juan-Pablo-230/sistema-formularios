@@ -1,8 +1,6 @@
 class ProfileUpdater {
     constructor() {
         this.availableLegajos = new Set();
-        this.jsonBinId = '69291d49d0ea881f4004e8dd';
-        this.apiKey = '$2a$10$K5FuWuAAvHsyQRbblRRfzuxDWsYnYRz9jba9BUd5UtvbmuHaqfcZC';
         this.init();
     }
 
@@ -45,8 +43,24 @@ class ProfileUpdater {
     checkUserStatus() {
         if (authSystem && authSystem.isLoggedIn && authSystem.isLoggedIn()) {
             this.showUserInfo();
+            this.hideGuestInfo();
         } else {
             this.hideUserInfo();
+            this.showGuestInfo();
+        }
+    }
+
+    showGuestInfo() {
+        const guestInfo = document.getElementById('guestInfo');
+        if (guestInfo) {
+            guestInfo.style.display = 'block';
+        }
+    }
+
+    hideGuestInfo() {
+        const guestInfo = document.getElementById('guestInfo');
+        if (guestInfo) {
+            guestInfo.style.display = 'none';
         }
     }
 
@@ -69,6 +83,11 @@ class ProfileUpdater {
             // Mostrar botón de panel de administración si es admin o avanzado
             this.showAdminPanelButton(user);
         }
+    }
+
+    hideUserInfo() {
+        const userInfo = document.getElementById('userInfo');
+        if (userInfo) userInfo.style.display = 'none';
     }
 
     showAdminPanelButton(user) {
@@ -96,11 +115,6 @@ class ProfileUpdater {
         }
     }
 
-    hideUserInfo() {
-        const userInfo = document.getElementById('userInfo');
-        if (userInfo) userInfo.style.display = 'none';
-    }
-
     setupEventListeners() {
         const updateProfileBtn = document.getElementById('updateProfileBtn');
         if (updateProfileBtn) {
@@ -115,11 +129,56 @@ class ProfileUpdater {
                 if (authSystem && authSystem.logout) {
                     authSystem.logout();
                 }
+                this.checkUserStatus(); // Actualizar UI después de logout
                 window.location.reload();
             });
         }
 
+        // Nuevos event listeners para invitados
+        const loginBtn = document.getElementById('loginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                this.showLoginModal();
+            });
+        }
+
+        const registerBtn = document.getElementById('registerBtn');
+        if (registerBtn) {
+            registerBtn.addEventListener('click', () => {
+                this.showRegisterModal();
+            });
+        }
+
         this.setupModalEvents();
+    }
+
+    async showLoginModal() {
+        try {
+            await authSystem.showLoginModal();
+            // Después de login exitoso, actualizar UI
+            this.checkUserStatus();
+            window.location.reload();
+        } catch (error) {
+            console.log('Login cancelado o fallido');
+        }
+    }
+
+    async showRegisterModal() {
+        try {
+            await authSystem.showLoginModal();
+            // Cambiar a pestaña de registro
+            const modal = document.querySelector('.login-overlay');
+            if (modal) {
+                const registerTab = modal.querySelector('[data-tab="register"]');
+                if (registerTab) {
+                    registerTab.click();
+                }
+            }
+        } catch (error) {
+            console.log('Modal no disponible');
+            // Si no hay modal activo, mostrar el modal de login
+            await authSystem.showLoginModal();
+        }
     }
 
     setupModalEvents() {
@@ -362,7 +421,7 @@ class ProfileUpdater {
                 
                 setTimeout(() => {
                     this.hideUpdateModal();
-                    this.showUserInfo();
+                    this.checkUserStatus();
                     window.location.reload();
                 }, 2000);
             } else {
@@ -450,6 +509,7 @@ class ProfileUpdater {
                 setTimeout(() => {
                     authSystem.logout();
                     this.hideUpdateModal();
+                    this.checkUserStatus();
                     window.location.reload();
                 }, 2000);
             } else {
