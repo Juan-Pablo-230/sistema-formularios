@@ -598,6 +598,175 @@ app.put('/api/admin/usuarios/:id/rol', async (req, res) => {
     }
 });
 
+app.put('/api/admin/usuarios/:id/password', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newPassword } = req.body;
+        
+        console.log('🔐 Cambiando contraseña para usuario ID:', id);
+        
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'La nueva contraseña debe tener al menos 6 caracteres' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Actualizar contraseña
+        const result = await db.collection('usuarios').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { password: newPassword } }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Contraseña cambiada correctamente' 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error cambiando contraseña:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+app.put('/api/admin/usuarios/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { apellidoNombre, legajo, email, turno } = req.body;
+        
+        console.log('✏️ Editando usuario ID:', id, 'Datos:', req.body);
+        
+        if (!apellidoNombre || !legajo || !email || !turno) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Todos los campos son requeridos' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar si el nuevo legajo o email ya existen en otro usuario
+        const usuarioExistente = await db.collection('usuarios').findOne({
+            $and: [
+                { _id: { $ne: new ObjectId(id) } },
+                { $or: [
+                    { legajo: legajo.toString() },
+                    { email: email }
+                ]}
+            ]
+        });
+        
+        if (usuarioExistente) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'El email o legajo ya están registrados por otro usuario' 
+            });
+        }
+        
+        // Actualizar usuario
+        const result = await db.collection('usuarios').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { 
+                apellidoNombre, 
+                legajo: legajo.toString(), 
+                email, 
+                turno 
+            }}
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Usuario actualizado correctamente' 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error actualizando usuario:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+app.delete('/api/admin/usuarios/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        console.log('🗑️ Eliminando usuario con ID:', id);
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que el usuario existe
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(id) 
+        });
+        
+        if (!usuario) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // No permitir eliminar al usuario actual
+        const currentUserId = req.headers['user-id'];
+        if (currentUserId === id) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'No puedes eliminarte a ti mismo' 
+            });
+        }
+        
+        // Eliminar el usuario
+        const result = await db.collection('usuarios').deleteOne({ 
+            _id: new ObjectId(id) 
+        });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        console.log('✅ Usuario eliminado:', usuario.apellidoNombre);
+        
+        res.json({ 
+            success: true, 
+            message: `Usuario ${usuario.apellidoNombre} eliminado correctamente` 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error eliminando usuario:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
 // ==================== INICIALIZACIÓN DE BASE DE DATOS ====================
 app.get('/api/init-db', async (req, res) => {
     try {
