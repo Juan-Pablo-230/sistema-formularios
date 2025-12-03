@@ -1,0 +1,49 @@
+# Copia este comando completo y ejecútalo en la raíz de tu proyecto
+cat > .gitignore << 'EOF'
+# ================================
+# DEPENDENCIAS
+# ================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ================================
+# VARIABLES DE ENTORNO
+# ================================
+.env
+.env.local
+.env.*.local
+
+# ================================
+# SISTEMA OPERATIVO
+# ================================
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+desktop.ini
+
+# ================================
+# RAILWAY
+# ================================
+.railway/
+
+# ================================
+# ARCHIVOS TEMPORALES
+# ================================
+*.log
+*.tmp
+*.temp
+*.bak
+
+# ================================
+# MONGODB
+# ================================
+/data/
+mongod.pid
+mongo.log
+EOF
+
+# Verifica que se creó
+cat .gitignore

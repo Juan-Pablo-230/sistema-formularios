@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario de Inscripción</title>
+    <link rel="stylesheet" href="/css/formularios.css">
+</head>
+<body>
+    <div class="container">
+        
+        <h1>Formulario de inscripción</h1>
+        <h2>Clase "Aislamientos y casos clínicos"</h2>
+        <p class="deadline">${elementoFecha.textContent}</p>
+
+        <div class="back-btn-container">
+            <a href="../index.html" class="back-btn">← Volver al Menú Principal</a>
+        </div>
+        
+        <form id="inscripcionForm" action="https://formsubmit.co/d1df6a40e65187bd492807cb6a2a7fde" method="POST">
+            <!-- Campo oculto para el asunto del email -->
+             <input type="hidden" name="_captcha" value="false">
+            <input type="hidden" name="_subject" value="Nueva Inscripción - Formulario">
+            <input type="hidden" name="_next" value="https://teams.microsoft.com/l/meetup-join/19%3ameeting_OThmMmE5YTQtMTg1ZC00ZjMyLWJkMzUtYWNlMDRlYTgwNmNh%40thread.v2/0?context=%7b%22Tid%22%3a%228e4207d9-5a8b-437f-9ad3-46b19c71ca6b%22%2c%22Oid%22%3a%22e07a2653-7fd4-4c08-b364-30bc3d341cb6%22%7d">
+
+            
+            <div class="form-group">
+                <label for="apellidoNombre">Apellido y Nombre *</label>
+                <input type="text" id="apellidoNombre" name="apellidoNombre" required>
+            </div>
+
+            <div class="form-group">
+                <label for="legajo">Número de Legajo</label>
+                <input type="number" id="legajo" name="legajo" required>
+            </div>
+
+            <div class="form-group">
+                <label for="clase">Clase:</label>
+                <select id="clase" name="clase" readonly required>
+                    <option value="Aislamientos y casos clínicos">Aislamientos y casos clínicos</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="turno">Turno</label>
+                <select id="turno" name="turno" required>
+                    <option value="">Seleccione turno</option>
+                    <option value="Turno mañana">Turno mañana</option>
+                    <option value="Turno tarde">Turno tarde</option>
+                    <option value="Turno noche A">Turno noche A</option>
+                    <option value="Turno noche B">Turno noche B</option>
+                    <option value="Turno SADOFE">Turno Sábado, Domingo y feriado</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Correo Electrónico</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <button type="submit" class="submit-btn">Ingresar a la clase</button>
+        </form>
+    </div>
+
+    <script src="/js/formularios.js"></script>
+    <script src="/js/auth.js"></script>
+        <script>
+        // Configuración de fecha y hora de cierre
+        const fechaCierre = new Date('2025-12-04T10:00:00-03:00'); // 4 de diciembre de 2025 a las 10:00hs (Hora Argentina)
+        
+        // Función para formatear fecha en español
+        function formatearFecha(fecha) {
+            const opciones = { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false // Formato 24hs
+            };
+            return fecha.toLocaleDateString('es-AR', opciones).replace(',', ' a las') + 'hs';
+        }
+        
+        // Función para actualizar el contador y verificar si el formulario debe cerrarse
+        function verificarCierreFormulario() {
+            const ahora = new Date();
+            const tiempoRestante = fechaCierre - ahora;
+            
+            // Actualizar el texto de la fecha de cierre
+            const elementoFecha = document.querySelector('.deadline');
+            if (elementoFecha) {
+                elementoFecha.textContent = `Fecha de cierre: ${formatearFecha(fechaCierre)} (Hora Argentina)`;
+            }
+            
+            // Verificar si ya pasó la fecha de cierre
+            if (tiempoRestante <= 0) {
+                // Deshabilitar el formulario
+                const formulario = document.getElementById('inscripcionForm');
+                if (formulario) {
+                    formulario.classList.add('form-disabled');
+                    
+                    // Deshabilitar todos los campos del formulario
+                    const campos = formulario.querySelectorAll('input, select, button');
+                    campos.forEach(campo => {
+                        campo.disabled = true;
+                    });
+
+                    // Eliminar el botón de enviar
+                    const botonEnviar = formulario.querySelector('.submit-btn');
+                    if (botonEnviar) {
+                        botonEnviar.remove();
+                    }
+                    
+                    // Mostrar mensaje de cierre
+                    const mensajeCierre = document.createElement('div');
+                    mensajeCierre.className = 'expired-message';
+                    mensajeCierre.textContent = 'Se cerro la inscripcion de la clase.';
+                    formulario.parentNode.insertBefore(mensajeCierre, formulario);
+                }
+                
+                // Detener la verificación periódica
+                clearInterval(intervaloVerificacion);
+            }
+        }
+        
+        // Ejecutar la verificación inmediatamente y luego cada minuto
+        verificarCierreFormulario();
+        const intervaloVerificacion = setInterval(verificarCierreFormulario, 60000); // Verificar cada minuto
+    </script>
+</body>
+</html>

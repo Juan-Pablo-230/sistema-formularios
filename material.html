@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud de Material</title>
+    <link rel="stylesheet" href="/css/formularios.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Solicitar Material de Clases</h1>
+        
+        <div class="back-btn-container">
+            <button onclick="window.location.href='/index.html'" class="back-btn">← Volver al Menú Principal</button>
+            <button id="logoutBtn" class="back-btn logout-btn">🚪 Cerrar Sesión</button>
+        </div>
+        
+        <div id="statusMessage" class="status-message" style="display: none;"></div>
+        
+        <form id="materialForm">
+            <div class="form-group" id="material">
+                <label for="claseSeleccionada">Seleccionar Clase *</label>
+                <select id="claseSeleccionada" name="clase" required readonly>
+                    <option value="Aislamientos y casos clínicos">Aislamientos y casos clínicos</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="material">
+                <label for="emailUsuario">Correo Electrónico</label>
+                <input type="email" id="emailUsuario" name="email">
+            </div>
+
+            <button type="submit" class="submit-btn">📧 Solicitar Material</button>
+        </form>
+        
+        <div id="misSolicitudes" style="margin-top: 40px; display: none;">
+            <h2 style="text-align: center; margin-bottom: 20px;">Mis Solicitudes</h2>
+            <table class="inscripciones-table" id="tablaMisSolicitudes">
+                <thead>
+                    <tr>
+                        <th>Clase</th>
+                        <th>Fecha Solicitud</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Se llenará dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+    class MaterialUsuario {
+        constructor() {
+            this.solicitudes = [];
+            // URL dinámica para Railway
+            this.apiBaseUrl = window.location.origin + '/api';
+            console.log('🚀 URL API:', this.apiBaseUrl);
+            this.init();
+        }
+
+        async init() {
+            console.log('🚀 Inicializando sistema de material...');
+            
+            // Esperar a que authSystem esté disponible
+            await this.esperarAuthSystem();
+            
+            if (!authSystem || !authSystem.isLoggedIn()) {
+                console.log('❌ Usuario no logueado');
+                this.mostrarError('Debe iniciar sesión para solicitar material');
+                setTimeout(() => window.location.href = '/index.html', 2000);
+                return;
+            }
+
+            this.configurarUI();
+            await this.probarConexion();
+            await this.cargarMisSolicitudes();
+        }
+
+        async esperarAuthSystem() {
+            return new Promise((resolve) => {
+                const check = setInterval(() => {
+                    if (typeof authSystem !== 'undefined' && authSystem.getCurrentUser) {
+                        clearInterval(check);
+                        console.log('✅ authSystem disponible');
+                        resolve();
+                    }
+                }, 100);
+                
+                setTimeout(() => {
+                    clearInterval(check);
+                    console.log('⚠️ Timeout esperando authSystem');
+                    resolve();
+                }, 5000);
+            });
+        }
+
+        async probarConexion() {
+            try {
+                console.log('🔍 Probando conexión con API...');
+                const response = await fetch(`${this.apiBaseUrl}/test/simple`);
+                const text = await response.text();
+                console.log('📄 Respuesta texto:', text);
+                
+                try {
+                    const result = JSON.parse(text);
+                    console.log('✅ Conexión API exitosa:', result);
+                    return true;
+                } catch (e) {
+                    console.error('❌ No es JSON válido:', text.substring(0, 200));
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Error probando conexión API:', error);
+                this.mostrarError('Error de conexión con el servidor');
+                return false;
+            }
+        }
+
+        configurarUI() {
+            const usuario = authSystem.getCurrentUser();
+            console.log('👤 Usuario actual:', usuario);
+            
+            if (usuario && usuario.email) {
+                document.getElementById('emailUsuario').value = usuario.email;
+            } else {
+                this.mostrarError('No se pudo obtener información del usuario');
+                return;
+            }
+
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                authSystem.logout();
+                window.location.href = '/index.html';
+            });
+
+            document.getElementById('materialForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.enviarSolicitud();
+            });
+        }
+
+        async cargarMisSolicitudes() {
+            try {
+                const user = authSystem.getCurrentUser();
+                if (!user || !user._id) {
+                    console.error('❌ Usuario no tiene ID');
+                    return;
+                }
+
+                console.log('🔍 Cargando mis solicitudes para usuario:', user._id);
+                
+                const response = await fetch(`${this.apiBaseUrl}/material/solicitudes`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': user._id
+                    }
+                });
+
+                console.log('📊 Status de respuesta:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    console.error('❌ Error HTTP:', response.status);
+                    const errorText = await response.text();
+                    console.error('📄 Texto de error:', errorText.substring(0, 200));
+                    return;
+                }
+                
+                const result = await response.json();
+                console.log('✅ Solicitudes cargadas:', result);
+                
+                if (result.success && result.data) {
+                    this.solicitudes = result.data;
+                    console.log(`📋 ${this.solicitudes.length} solicitudes encontradas`);
+                    this.mostrarMisSolicitudes();
+                } else {
+                    console.warn('⚠️ No se encontraron solicitudes:', result.message);
+                }
+            } catch (error) {
+                console.error('❌ Error cargando mis solicitudes:', error);
+            }
+        }
+
+        mostrarMisSolicitudes() {
+            if (this.solicitudes.length === 0) return;
+
+            const container = document.getElementById('misSolicitudes');
+            const tbody = document.querySelector('#tablaMisSolicitudes tbody');
+            
+            container.style.display = 'block';
+            tbody.innerHTML = '';
+
+            this.solicitudes.forEach(solicitud => {
+                const row = document.createElement('tr');
+                const fecha = solicitud.fechaSolicitud ? 
+                    new Date(solicitud.fechaSolicitud).toLocaleDateString('es-AR') : 
+                    'Fecha no disponible';
+                
+                row.innerHTML = `
+                    <td>${solicitud.clase || 'N/A'}</td>
+                    <td>${fecha}</td>
+                    <td><span style="color: green;">✓ Solicitado</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async enviarSolicitud() {
+            const clase = document.getElementById('claseSeleccionada').value;
+            const email = document.getElementById('emailUsuario').value;
+
+            if (!clase) {
+                this.mostrarError('Por favor, seleccione una clase');
+                return;
+            }
+
+            // Verificar si ya solicitó esta clase
+            if (this.solicitudes.some(s => s.clase === clase)) {
+                this.mostrarError('Ya ha solicitado material para esta clase');
+                return;
+            }
+
+            try {
+                const user = authSystem.getCurrentUser();
+                if (!user || !user._id) {
+                    this.mostrarError('Error: Usuario no autenticado correctamente');
+                    return;
+                }
+
+                const solicitudData = {
+                    clase: clase,
+                    email: email
+                };
+
+                console.log('📤 Enviando solicitud:', solicitudData);
+                console.log('👤 ID de usuario:', user._id);
+                
+                const response = await fetch(`${this.apiBaseUrl}/material/solicitudes`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': user._id
+                    },
+                    body: JSON.stringify(solicitudData)
+                });
+
+                console.log('📊 Status de respuesta:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Error del servidor:', errorText);
+                    throw new Error(`Error ${response.status}: ${errorText.substring(0, 100)}`);
+                }
+                
+                const result = await response.json();
+                console.log('✅ Resultado del servidor:', result);
+
+                if (result.success) {
+                    this.mostrarExito('✅ Solicitud enviada correctamente');
+                    
+                    // Limpiar formulario
+                    document.getElementById('claseSeleccionada').value = '';
+                    
+                    // Recargar mis solicitudes
+                    await this.cargarMisSolicitudes();
+                    
+                } else {
+                    this.mostrarError(result.message || 'Error al enviar la solicitud');
+                }
+            } catch (error) {
+                console.error('❌ Error enviando solicitud:', error);
+                this.mostrarError('Error: ' + error.message);
+            }
+        }
+
+        mostrarExito(mensaje) {
+            this.mostrarMensaje(mensaje, 'success');
+        }
+
+        mostrarError(mensaje) {
+            this.mostrarMensaje(mensaje, 'error');
+        }
+
+        mostrarMensaje(mensaje, tipo) {
+            const mensajeDiv = document.getElementById('statusMessage');
+            mensajeDiv.textContent = mensaje;
+            mensajeDiv.className = `status-message ${tipo}`;
+            mensajeDiv.style.display = 'block';
+
+            setTimeout(() => {
+                mensajeDiv.style.display = 'none';
+            }, 5000);
+        }
+    }
+
+    // Inicializar cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('📄 DOM cargado, inicializando material...');
+        new MaterialUsuario();
+    });
+    </script>
+</body>
+</html>

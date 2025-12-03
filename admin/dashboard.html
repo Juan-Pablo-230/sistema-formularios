@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración</title>
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <div class="admin-container">
+        <header class="admin-header">
+            <h1>📊 Panel de Administración</h1>
+            <div class="admin-info">
+                <span>👤 <span id="adminName"></span></span>
+                <span>📧 <span id="adminEmail"></span></span>
+                <span id="adminRole"></span>
+                <button id="homeBtn" class="btn btn-primary">🏠 Inicio</button>
+                <button id="logoutBtn" class="btn btn-danger">🚪 Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <!-- Navegación entre vistas -->
+        <div class="view-navigation">
+            <button id="btnInscripciones" class="view-btn active">📋 Inscripciones</button>
+            <button id="btnUsuarios" class="view-btn">👥 Gestión de Usuarios</button>
+            <button id="btnMaterial" class="view-btn">📚 Solicitudes de Material</button>
+        </div>
+
+        <!-- Estadísticas dinámicas -->
+        <div class="stats-container" id="statsInscripciones">
+            <div class="stat-card">
+                <h3>Total Inscripciones</h3>
+                <div class="stat-number" id="totalInscripciones">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Última Inscripción</h3>
+                <div class="stat-text" id="ultimaInscripcion">-</div>
+            </div>
+        </div>
+
+        <div class="stats-container" id="statsUsuarios" style="display: none;">
+            <div class="stat-card">
+                <h3>Total Usuarios</h3>
+                <div class="stat-number" id="totalUsuarios">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Administradores</h3>
+                <div class="stat-number" id="usuariosAdmin">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Usuarios Avanzados</h3>
+                <div class="stat-number" id="usuariosAvanzados">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Usuarios Estándar</h3>
+                <div class="stat-number" id="usuariosEstandar">0</div>
+            </div>
+        </div>
+
+        <div class="stats-container" id="statsMaterial" style="display: none;">
+            <div class="stat-card">
+                <h3>Total Solicitudes</h3>
+                <div class="stat-number" id="totalSolicitudes">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Solicitudes Hoy</h3>
+                <div class="stat-number" id="solicitudesHoy">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Clase Más Solicitada</h3>
+                <div class="stat-text" id="clasePopular">-</div>
+            </div>
+        </div>
+
+        <!-- Sección de filtros para inscripciones -->
+        <div class="filtros-container" id="filtrosInscripciones">
+            <label for="filtroClase">Filtrar por clase:</label>
+            <div id="filtroContainer"></div>
+            <div class="contador-resultados" id="contadorResultados">0 inscripciones en total</div>
+        </div>
+
+        <!-- Sección de filtros para material -->
+        <div class="filtros-container" id="filtrosMaterial" style="display: none; margin-bottom: 20px;">
+            <label for="filtroClaseMaterialAdmin">Filtrar por clase:</label>
+            <select id="filtroClaseMaterialAdmin" class="filtro-select">
+                <option value="todas">Todas las clases</option>
+            </select>
+            
+            <div class="contador-resultados" id="contadorMaterialAdmin">
+                0 solicitudes en total
+            </div>
+            
+            <button id="btnExportarCorreosAdmin" class="btn btn-success" style="display: none;">
+                📧 Exportar Correos (.txt)
+            </button>
+        </div>
+
+        <div class="actions-bar">
+            <button id="refreshBtn" class="btn btn-primary">🔄 Actualizar Datos</button>
+            <button id="exportBtn" class="btn btn-success">📥 Exportar a CSV</button>
+            <button id="createUserBtn" class="btn btn-warning" style="display: none;">➕ Crear Usuario</button>
+        </div>
+
+        <!-- Sección de Inscripciones -->
+        <div class="table-container" id="inscripcionesSection">
+            <h2>📋 Lista de Inscripciones</h2>
+            <table class="inscripciones-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Apellido y Nombre</th>
+                        <th>Legajo</th>
+                        <th>Clase</th>
+                        <th>Turno</th>
+                        <th>Email</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="inscripcionesBody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sección de Gestión de Usuarios (Solo para admins) -->
+        <div class="table-container" id="usuariosSection" style="display: none;">
+            <h2>👥 Gestión de Usuarios Registrados</h2>
+            <table class="inscripciones-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Apellido y Nombre</th>
+                        <th>Legajo</th>
+                        <th>Email</th>
+                        <th>Turno</th>
+                        <th>Rol</th>
+                        <th>Fecha Registro</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="usuariosBody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sección de Solicitudes de Material -->
+        <div class="table-container" id="materialSection" style="display: none;">
+            <h2>📚 Solicitudes de Material por Clase</h2>
+            
+            <table class="inscripciones-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Apellido y Nombre</th>
+                        <th>Legajo</th>
+                        <th>Clase</th>
+                        <th>Email</th>
+                        <th>Fecha Solicitud</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="materialBodyAdmin">
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #666; padding: 20px;">
+                            No hay solicitudes de material
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/admin.js"></script>
+</body>
+</html>
