@@ -14,6 +14,24 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// ==================== CONFIGURACIÓN INICIAL ====================
+console.log('🚀 Iniciando Sistema de Formularios MongoDB...');
+
+// Manejar errores no capturados
+process.on('uncaughtException', (error) => {
+  console.error('❌ UNCAUGHT EXCEPTION:', error.message);
+  console.error('Stack:', error.stack);
+  // No salir inmediatamente, dejar que Railway maneje el restart
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ UNHANDLED REJECTION at:', promise);
+  console.error('Reason:', reason);
+});
+
+// Configurar timeout para requests lentas
+const requestTimeout = 30000; // 30 segundos
+
 // ==================== RUTAS DE DIAGNÓSTICO MEJORADAS ====================
 
 // Test de conexión directa a MongoDB
@@ -1083,85 +1101,135 @@ app.use('*', (req, res) => {
 async function initializeServer() {
     try {
         console.log('🔧 ========== INICIANDO SERVIDOR ==========');
-        console.log('📋 Variables de entorno disponibles:');
+        console.log('📋 Environment check:');
+        console.log('- Node version:', process.version);
+        console.log('- Platform:', process.platform);
         console.log('- PORT:', process.env.PORT || 3000);
         console.log('- MONGODB_URI:', process.env.MONGODB_URI ? 'DEFINIDA' : 'NO DEFINIDA');
-        console.log('- NODE_ENV:', process.env.NODE_ENV || 'development');
         
-        // Verificar MONGODB_URI en detalle
-        if (process.env.MONGODB_URI) {
-            const uri = process.env.MONGODB_URI;
-            console.log('📏 Longitud URI:', uri.length);
-            
-            // Mostrar URI enmascarada
+        // Health check inmediato (para Railway)
+        app.get('/api/health', (req, res) => {
+            console.log('🏥 Health check request');
+            res.json({ 
+                status: 'OK', 
+                message: 'Servidor funcionando',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime()
+            });
+        });
+
+        // Test simple (sin dependencias)
+        app.get('/api/test/simple', (req, res) => {
+            console.log('✅ Ruta de prueba GET llamada');
+            res.json({ 
+                success: true, 
+                message: 'Test GET funciona',
+                timestamp: new Date().toISOString()
+            });
+        });
+        
+        // CONEXIÓN A MONGODB (con timeout)
+        console.log('\n🔄 Intentando conectar a MongoDB (con timeout)...');
+        
+        const dbConnectionPromise = (async () => {
             try {
-                const masked = uri.replace(
-                    /mongodb\+srv:\/\/([^:]+):([^@]+)@/, 
-                    'mongodb+srv://$1:****@'
-                );
-                console.log('🎭 URI (enmascarada):', masked);
-            } catch (e) {
-                console.log('⚠️ Error enmascarando URI');
+                await connectToDatabase();
+                console.log('✅ MongoDB conectado exitosamente');
+                return true;
+            } catch (error) {
+                console.warn('⚠️ MongoDB no disponible:', error.message);
+                return false;
             }
-        }
+        })();
         
-        // CONEXIÓN A MONGODB
-        console.log('\n🔄 Intentando conectar a MongoDB...');
-        try {
-            await connectToDatabase();
-            console.log('✅ MongoDB conectado exitosamente');
-            
+        // Timeout de 15 segundos para conexión DB
+        const dbTimeout = new Promise(resolve => {
+            setTimeout(() => {
+                console.log('⏰ Timeout en conexión DB - Continuando sin DB');
+                resolve(false);
+            }, 15000);
+        });
+        
+        const dbConnected = await Promise.race([dbConnectionPromise, dbTimeout]);
+        
+        if (dbConnected) {
             // Verificar que realmente funciona
-            const db = getDB('test');
-            await db.command({ ping: 1 });
-            console.log('✅ Ping a MongoDB exitoso');
-            
-            // Verificar/crear colección de material
-            const collections = await db.listCollections({ name: 'material' }).toArray();
-            if (collections.length === 0) {
-                console.log('📝 Creando colección "material"...');
-                await db.createCollection('material');
-                await db.collection('material').createIndex({ usuarioId: 1, clase: 1 });
-                await db.collection('material').createIndex({ fechaSolicitud: -1 });
-                console.log('✅ Colección "material" creada');
+            try {
+                const db = getDB('test');
+                await db.command({ ping: 1 });
+                console.log('✅ Ping a MongoDB exitoso');
+            } catch (pingError) {
+                console.warn('⚠️ Ping falló:', pingError.message);
             }
-            
-        } catch (dbError) {
-            console.error('❌ ERROR conectando a MongoDB:');
-            console.error('- Mensaje:', dbError.message);
-            console.error('- Código:', dbError.code || 'N/A');
-            console.error('- Nombre:', dbError.name);
-            
-            if (dbError.message.includes('ENOTFOUND') || dbError.message.includes('getaddrinfo')) {
-                console.error('⚠️ Problema de DNS. Verifica el hostname del cluster.');
-            } else if (dbError.message.includes('authentication') || dbError.message.includes('bad auth')) {
-                console.error('⚠️ Error de autenticación. Verifica usuario/contraseña.');
-            } else if (dbError.message.includes('timed out')) {
-                console.error('⚠️ Timeout. Verifica Network Access en MongoDB Atlas.');
-            }
-            
-            console.warn('⚠️ Continuando sin conexión a base de datos - Las rutas fallarán');
         }
         
         console.log('\n🚀 Iniciando servidor Express...');
         
+        // Configurar servidor con manejo de errores
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log('==========================================');
-            console.log('🚀 SERVIDOR INICIADO CORRECTAMENTE');
+            console.log('✅ SERVIDOR INICIADO CORRECTAMENTE');
             console.log(`🔧 Puerto: ${PORT}`);
-            console.log(`🌍 Health Check: /api/health`);
-            console.log(`🐛 Test Connection: /api/test-connection`);
-            console.log(`🔧 Debug DB: /api/debug/db`);
-            console.log(`🔧 Test Simple: /api/test/simple`);
-            console.log(`🔧 Reconnect DB: /api/admin/reconnect-db`);
+            console.log(`🌍 URL externa disponible`);
+            console.log(`🏥 Health: /api/health`);
+            console.log(`🧪 Test: /api/test/simple`);
+            console.log(`📊 MongoDB: ${dbConnected ? 'CONECTADO' : 'NO DISPONIBLE'}`);
             console.log('==========================================');
+            
+            // Health check inmediato después de iniciar
+            fetch(`http://localhost:${PORT}/api/health`)
+                .then(() => console.log('✅ Health check interno exitoso'))
+                .catch(() => console.warn('⚠️ Health check interno falló'));
         });
-
+        
+        // Manejo de errores del servidor
+        server.on('error', (error) => {
+            console.error('❌ Error del servidor:', error.message);
+            if (error.code === 'EADDRINUSE') {
+                console.error(`⚠️ Puerto ${PORT} en uso, intentando con puerto ${parseInt(PORT) + 1}`);
+                app.listen(parseInt(PORT) + 1, '0.0.0.0');
+            }
+        });
+        
+        // Timeout para conexiones lentas
+        server.setTimeout(30000);
+        server.keepAliveTimeout = 30000;
+        
         return server;
     } catch (error) {
-        console.error('❌ ERROR CRÍTICO iniciando servidor:', error);
+        console.error('❌ ERROR CRÍTICO iniciando servidor:', error.message);
         console.error('Stack:', error.stack);
-        process.exit(1);
+        
+        // Intentar iniciar servidor básico de emergencia
+        try {
+            const emergencyApp = require('express')();
+            emergencyApp.get('/api/health', (req, res) => {
+                res.json({ 
+                    status: 'EMERGENCY', 
+                    message: 'Servidor en modo emergencia',
+                    error: error.message,
+                    timestamp: new Date().toISOString()
+                });
+            });
+            
+            emergencyApp.get('*', (req, res) => {
+                res.status(503).json({
+                    status: 'MAINTENANCE',
+                    message: 'Servicio en mantenimiento',
+                    timestamp: new Date().toISOString()
+                });
+            });
+            
+            const emergencyPort = process.env.PORT || 3000;
+            emergencyApp.listen(emergencyPort, '0.0.0.0', () => {
+                console.log(`🚨 Servidor de emergencia iniciado en puerto ${emergencyPort}`);
+            });
+        } catch (emergencyError) {
+            console.error('❌ ERROR en servidor de emergencia:', emergencyError.message);
+            process.exit(1);
+        }
+        
+        return null;
     }
 }
 

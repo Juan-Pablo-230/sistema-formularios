@@ -1,5 +1,8 @@
 [phases.setup]
-cmds = ["npm install"]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["echo 'Build completado'"]
 
 [start]
-cmd = "npm start"
+cmd = "node server.js"
