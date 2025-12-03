@@ -351,6 +351,72 @@ app.get('/api/inscripciones', async (req, res) => {
     }
 });
 
+app.get('/api/inscripciones/estadisticas', async (req, res) => {
+    try {
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Obtener todas las inscripciones
+        const inscripciones = await db.collection('inscripciones')
+            .aggregate([
+                {
+                    $lookup: {
+                        from: 'usuarios',
+                        localField: 'usuarioId',
+                        foreignField: '_id',
+                        as: 'usuario'
+                    }
+                },
+                { $unwind: '$usuario' }
+            ])
+            .toArray();
+        
+        // Calcular estadísticas
+        const hoy = new Date().toISOString().split('T')[0];
+        const inscripcionesHoy = inscripciones.filter(i => 
+            i.fecha && i.fecha.split('T')[0] === hoy
+        ).length;
+        
+        // Estadísticas por clase
+        const porClase = {};
+        inscripciones.forEach(insc => {
+            if (insc.clase) {
+                porClase[insc.clase] = (porClase[insc.clase] || 0) + 1;
+            }
+        });
+        
+        // Estadísticas por turno
+        const porTurno = {};
+        inscripciones.forEach(insc => {
+            if (insc.turno) {
+                porTurno[insc.turno] = (porTurno[insc.turno] || 0) + 1;
+            }
+        });
+        
+        res.json({ 
+            success: true, 
+            data: {
+                total: inscripciones.length,
+                hoy: inscripcionesHoy,
+                porClase: porClase,
+                porTurno: porTurno,
+                ultimas: inscripciones.slice(0, 10).map(insc => ({
+                    usuario: insc.usuario?.apellidoNombre,
+                    clase: insc.clase,
+                    fecha: insc.fecha
+                }))
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo estadísticas de inscripciones:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
 // ==================== RUTAS DE MATERIAL ====================
 app.post('/api/material/solicitudes', async (req, res) => {
     try {
@@ -438,11 +504,20 @@ app.get('/api/material/solicitudes', async (req, res) => {
         
         console.log('✅ Usuario válido:', usuario.apellidoNombre);
         
-        // Obtener solicitudes del usuario
+        // Si es admin, puede ver todas las solicitudes
+        // Si no es admin, solo puede ver las suyas
+        let matchCriteria = { usuarioId: new ObjectId(userHeader) };
+        
+        if (usuario.role === 'admin') {
+            console.log('👑 Admin: viendo TODAS las solicitudes');
+            matchCriteria = {}; // Admin ve todo
+        }
+        
+        // Obtener solicitudes
         const solicitudes = await db.collection('material')
             .aggregate([
                 {
-                    $match: { usuarioId: new ObjectId(userHeader) }
+                    $match: matchCriteria
                 },
                 {
                     $lookup: {
@@ -465,6 +540,183 @@ app.get('/api/material/solicitudes', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Error obteniendo solicitudes de material:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+app.delete('/api/material/solicitudes/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userHeader = req.headers['user-id'];
+        
+        console.log('🗑️ Eliminando solicitud de material ID:', id);
+        console.log('👤 Usuario que solicita:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que la solicitud existe
+        const solicitud = await db.collection('material').findOne({ 
+            _id: new ObjectId(id) 
+        });
+        
+        if (!solicitud) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Solicitud no encontrada' 
+            });
+        }
+        
+        // Verificar permisos: solo admin o el propio usuario puede eliminar
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no válido' 
+            });
+        }
+        
+        // Solo admin puede eliminar cualquier solicitud
+        // Usuarios normales solo pueden eliminar sus propias solicitudes
+        const esAdmin = usuario.role === 'admin';
+        const esPropietario = solicitud.usuarioId.toString() === userHeader;
+        
+        if (!esAdmin && !esPropietario) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'No tienes permisos para eliminar esta solicitud' 
+            });
+        }
+        
+        // Eliminar la solicitud
+        const result = await db.collection('material').deleteOne({ 
+            _id: new ObjectId(id) 
+        });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Solicitud no encontrada' 
+            });
+        }
+        
+        console.log('✅ Solicitud eliminada:', id);
+        
+        res.json({ 
+            success: true, 
+            message: 'Solicitud eliminada correctamente' 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error eliminando solicitud de material:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+app.get('/api/material/estadisticas', async (req, res) => {
+    try {
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Obtener todas las solicitudes con datos del usuario
+        const solicitudes = await db.collection('material')
+            .aggregate([
+                {
+                    $lookup: {
+                        from: 'usuarios',
+                        localField: 'usuarioId',
+                        foreignField: '_id',
+                        as: 'usuario'
+                    }
+                },
+                { $unwind: '$usuario' }
+            ])
+            .toArray();
+        
+        // Calcular estadísticas
+        const hoy = new Date().toISOString().split('T')[0];
+        const solicitudesHoy = solicitudes.filter(s => 
+            s.fechaSolicitud && s.fechaSolicitud.split('T')[0] === hoy
+        ).length;
+        
+        // Calcular clase más popular
+        const clasesCount = {};
+        solicitudes.forEach(s => {
+            if (s.clase) {
+                clasesCount[s.clase] = (clasesCount[s.clase] || 0) + 1;
+            }
+        });
+        
+        let clasePopular = '-';
+        let maxCount = 0;
+        Object.entries(clasesCount).forEach(([clase, count]) => {
+            if (count > maxCount) {
+                maxCount = count;
+                clasePopular = clase;
+            }
+        });
+        
+        res.json({ 
+            success: true, 
+            data: {
+                total: solicitudes.length,
+                hoy: solicitudesHoy,
+                clasePopular: clasePopular,
+                porClase: clasesCount
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo estadísticas de material:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+app.get('/api/material/init', async (req, res) => {
+    try {
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar/crear colección de material
+        const collectionExists = await db.listCollections({ name: 'material' }).hasNext();
+        
+        if (!collectionExists) {
+            console.log('📝 Creando colección "material"...');
+            await db.createCollection('material');
+            
+            await db.collection('material').createIndex({ usuarioId: 1, clase: 1 });
+            await db.collection('material').createIndex({ fechaSolicitud: -1 });
+            
+            console.log('✅ Colección "material" creada con índices');
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Sistema de material inicializado',
+            collectionExists: collectionExists
+        });
+        
+    } catch (error) {
+        console.error('❌ Error inicializando material:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Error interno del servidor',
