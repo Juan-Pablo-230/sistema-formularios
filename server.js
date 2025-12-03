@@ -333,20 +333,42 @@ app.get('/api/inscripciones', async (req, res) => {
                         as: 'usuario'
                     }
                 },
-                { $unwind: '$usuario' }
+                { $unwind: '$usuario' },
+                // Ordenar por fecha más reciente
+                { $sort: { fecha: -1 } }
             ])
             .toArray();
         
+        // Formatear fechas para respuesta
+        const inscripcionesFormateadas = inscripciones.map(insc => {
+            const inscripcion = { ...insc };
+            
+            // Formatear fecha si existe
+            if (inscripcion.fecha instanceof Date) {
+                inscripcion.fecha = inscripcion.fecha.toISOString();
+            }
+            
+            // Eliminar password del usuario por seguridad
+            if (inscripcion.usuario && inscripcion.usuario.password) {
+                delete inscripcion.usuario.password;
+            }
+            
+            return inscripcion;
+        });
+        
+        console.log(`📋 ${inscripcionesFormateadas.length} inscripciones obtenidas`);
+        
         res.json({ 
             success: true, 
-            data: inscripciones 
+            data: inscripcionesFormateadas 
         });
         
     } catch (error) {
         console.error('❌ Error obteniendo inscripciones:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Error interno del servidor' 
+            message: 'Error interno del servidor',
+            error: error.message 
         });
     }
 });
@@ -370,11 +392,26 @@ app.get('/api/inscripciones/estadisticas', async (req, res) => {
             ])
             .toArray();
         
+        console.log(`📊 Total inscripciones para estadísticas: ${inscripciones.length}`);
+        
         // Calcular estadísticas
         const hoy = new Date().toISOString().split('T')[0];
-        const inscripcionesHoy = inscripciones.filter(i => 
-            i.fecha && i.fecha.split('T')[0] === hoy
-        ).length;
+        
+        const inscripcionesHoy = inscripciones.filter(i => {
+            if (!i.fecha) return false;
+            
+            // Convertir fecha a string para comparación
+            let fechaStr;
+            if (i.fecha instanceof Date) {
+                fechaStr = i.fecha.toISOString().split('T')[0];
+            } else if (typeof i.fecha === 'string') {
+                fechaStr = i.fecha.split('T')[0];
+            } else {
+                return false;
+            }
+            
+            return fechaStr === hoy;
+        }).length;
         
         // Estadísticas por clase
         const porClase = {};
@@ -392,6 +429,22 @@ app.get('/api/inscripciones/estadisticas', async (req, res) => {
             }
         });
         
+        // Preparar últimas inscripciones para mostrar
+        const ultimas = inscripciones.slice(0, 10).map(insc => {
+            let fechaFormateada = 'Fecha no disponible';
+            if (insc.fecha instanceof Date) {
+                fechaFormateada = insc.fecha.toLocaleString('es-AR');
+            } else if (typeof insc.fecha === 'string') {
+                fechaFormateada = new Date(insc.fecha).toLocaleString('es-AR');
+            }
+            
+            return {
+                usuario: insc.usuario?.apellidoNombre || 'N/A',
+                clase: insc.clase || 'N/A',
+                fecha: fechaFormateada
+            };
+        });
+        
         res.json({ 
             success: true, 
             data: {
@@ -399,11 +452,7 @@ app.get('/api/inscripciones/estadisticas', async (req, res) => {
                 hoy: inscripcionesHoy,
                 porClase: porClase,
                 porTurno: porTurno,
-                ultimas: inscripciones.slice(0, 10).map(insc => ({
-                    usuario: insc.usuario?.apellidoNombre,
-                    clase: insc.clase,
-                    fecha: insc.fecha
-                }))
+                ultimas: ultimas
             }
         });
         
