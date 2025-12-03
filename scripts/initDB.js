@@ -1,4 +1,4 @@
-const { connectToDatabase, getDB } = require('../database');
+const { connectToDatabase, getDB } = require('./database');
 
 async function initializeDatabase() {
     try {
