@@ -15,25 +15,71 @@ app.use(cors());
 app.use(express.json());
 
 // ==================== RUTAS DE DIAGNÓSTICO ====================
-app.get('/api/test/simple', (req, res) => {
-    console.log('✅ Ruta de prueba GET llamada');
-    res.json({ 
-        success: true, 
-        message: 'Test GET funciona',
-        timestamp: new Date().toISOString()
-    });
+app.get('/api/debug/db', async (req, res) => {
+    try {
+        console.log('=== DEBUG DATABASE ===');
+        
+        // Verificar si MONGODB_URI está definida
+        const hasUri = !!process.env.MONGODB_URI;
+        console.log('MONGODB_URI definida:', hasUri);
+        
+        if (hasUri) {
+            // Mostrar URI (enmascarada)
+            const maskedUri = process.env.MONGODB_URI.replace(
+                /mongodb\+srv:\/\/[^:]+:[^@]+@/, 
+                'mongodb+srv://***:***@'
+            );
+            console.log('URI (masked):', maskedUri);
+        }
+        
+        // Intentar conexión
+        const { mongoDB } = require('./database');
+        const isConnected = mongoDB.isConnected;
+        console.log('DB isConnected:', isConnected);
+        
+        if (isConnected) {
+            const db = getDB();
+            await db.command({ ping: 1 });
+            
+            // Listar bases de datos
+            const adminDb = mongoDB.client.db().admin();
+            const databases = await adminDb.listDatabases();
+            
+            res.json({
+                success: true,
+                message: '✅ MongoDB conectado correctamente',
+                details: {
+                    hasUri: hasUri,
+                    isConnected: isConnected,
+                    databases: databases.databases.map(db => db.name),
+                    uriMasked: hasUri ? process.env.MONGODB_URI.replace(
+                        /mongodb\+srv:\/\/[^:]+:[^@]+@/, 
+                        'mongodb+srv://***:***@'
+                    ) : null
+                }
+            });
+        } else {
+            res.json({
+                success: false,
+                message: '❌ MongoDB no conectado',
+                details: {
+                    hasUri: hasUri,
+                    isConnected: isConnected,
+                    error: 'La conexión no está establecida. Llama a connectToDatabase() primero.'
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('Debug DB error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error en debug',
+            error: error.message,
+            stack: error.stack
+        });
+    }
 });
-
-app.post('/api/test/simple', (req, res) => {
-    console.log('✅ Ruta de prueba POST llamada', req.body);
-    res.json({ 
-        success: true, 
-        message: 'Test POST funciona',
-        data: req.body,
-        timestamp: new Date().toISOString()
-    });
-});
-
 // ==================== RUTAS DE HEALTH CHECK ====================
 app.get('/api/health', (req, res) => {
     res.json({ 
@@ -820,22 +866,24 @@ async function initializeServer() {
     try {
         console.log('🔧 Inicializando servidor...');
         
+        // CONEXIÓN A MONGODB (obligatoria)
         try {
+            console.log('🔄 Conectando a MongoDB...');
             await connectToDatabase();
-            console.log('✅ MongoDB conectado');
+            console.log('✅ MongoDB conectado exitosamente');
             
-            // Verificar/crear colección de material
+            // Verificar conexión funcionando
             const db = getDB();
-            const collections = await db.listCollections({ name: 'material' }).toArray();
-            if (collections.length === 0) {
-                console.log('📝 Creando colección "material"...');
-                await db.createCollection('material');
-                await db.collection('material').createIndex({ usuarioId: 1, clase: 1 });
-                await db.collection('material').createIndex({ fechaSolicitud: -1 });
-                console.log('✅ Colección "material" creada');
-            }
+            await db.command({ ping: 1 });
+            console.log('✅ Ping a MongoDB exitoso');
+            
         } catch (dbError) {
-            console.error('⚠️ MongoDB no conectado, pero servidor iniciará:', dbError.message);
+            console.error('❌ ERROR CRÍTICO: No se pudo conectar a MongoDB');
+            console.error('Detalles:', dbError.message);
+            
+            // Crear un DB mock para development/testing
+            console.warn('⚠️ Usando modo fallback (sin base de datos)');
+            // Continuar sin DB para debugging
         }
 
         const server = app.listen(PORT, '0.0.0.0', () => {
@@ -843,6 +891,7 @@ async function initializeServer() {
             console.log('🚀 SERVICIOS DISPONIBLES:');
             console.log(`🔧 Puerto: ${PORT}`);
             console.log(`🌍 Health Check: /api/health`);
+            console.log(`🔧 Test DB: /api/debug/db`);
             console.log(`🔧 Test GET: /api/test/simple`);
             console.log(`🔧 Test POST: /api/test/simple`);
             console.log('=================================');
