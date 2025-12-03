@@ -342,6 +342,12 @@ input[readonly] {
     transform: translateY(0);
 }
 
+.not-open-message {
+    background-color: #e3f2fd; /* Azul claro para indicar "próximamente" */
+    color: #1565c0;
+    border-left: 4px solid #2196f3;
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 20px;

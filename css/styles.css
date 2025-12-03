@@ -778,6 +778,7 @@ body {
     gap: 10px;
     flex-wrap: wrap;
     justify-content: flex-end;
+    padding-top: 3%;
 }
 
 .login-btn, .register-btn {
