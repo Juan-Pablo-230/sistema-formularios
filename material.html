@@ -23,7 +23,8 @@
                 <select id="claseSeleccionada" name="clase" required>
                     <option value="">Seleccione una clase</option>
                     <option value="Fundamentos de la Redacción en la Gestión">Fundamentos de la Redacción en la Gestión</option>
-                    <option value="Proceso de admisión" style="display: none;">Proceso de admisión</option> <!-- Temporalmente desactivada -->
+                    <option value="Proceso de admisión">Proceso de admisión</option>
+                    <!-- Puedes añadir más opciones aquí siempre que quieras -->
                 </select>
             </div>
 
@@ -52,33 +53,188 @@
         </div>
     </div>
 
+    <script src="/js/formularios.js"></script>
     <script src="/js/auth.js"></script>
+    
+    <!-- SCRIPT DE CONTROL DE DISPONIBILIDAD - PRIMERO -->
+    <script>
+    // Configuración de disponibilidad de las clases
+    const REGLAS_DISPONIBILIDAD = {
+        "Fundamentos de la Redacción en la Gestión": {
+            disponible: {
+                desde: "2025-11-16T00:00:00", // 16 de Noviembre, 00:00hs
+                hasta: "2025-12-18T23:59:00"   // 18 de Diciembre, 23:59hs
+            }
+        },
+        "Proceso de admisión": {
+            disponible: {
+                desde: "2025-11-16T00:00:00", // 16 de Noviembre, 00:00hs
+                hasta: "2025-12-19T23:59:00"   // 19 de Diciembre, 23:59hs
+            }
+        }
+    };
+
+    class ControladorDisponibilidadClases {
+        constructor() {
+            this.selectElement = document.getElementById('claseSeleccionada');
+            this.intervaloVerificacion = null;
+            this.opcionesOriginales = new Map();
+            this.init();
+        }
+
+        init() {
+            console.log('🕐 [Disponibilidad] Inicializando controlador...');
+            
+            // Cargar opciones inmediatamente
+            this.cargarOpcionesOriginales();
+            this.actualizarOpciones();
+            this.iniciarVerificacionPeriodica();
+        }
+
+        cargarOpcionesOriginales() {
+            console.log('📋 [Disponibilidad] Cargando opciones originales...');
+            
+            for (let i = 0; i < this.selectElement.options.length; i++) {
+                const option = this.selectElement.options[i];
+                const value = option.value;
+                
+                if (value) {
+                    this.opcionesOriginales.set(value, {
+                        text: option.textContent,
+                        value: value
+                    });
+                    console.log(`📝 [Disponibilidad] Opción guardada: "${value}"`);
+                }
+            }
+        }
+
+        estaDisponible(value) {
+            const regla = REGLAS_DISPONIBILIDAD[value];
+            
+            // Si no hay regla, siempre disponible
+            if (!regla) {
+                return true;
+            }
+            
+            try {
+                const ahora = new Date();
+                const desde = new Date(regla.disponible.desde);
+                const hasta = new Date(regla.disponible.hasta);
+                
+                if (isNaN(desde.getTime()) || isNaN(hasta.getTime())) {
+                    return true;
+                }
+                
+                const disponible = ahora >= desde && ahora <= hasta;
+                console.log(`📅 [Disponibilidad] "${value}": ${disponible ? 'DISPONIBLE' : 'NO disponible'} (${ahora.toLocaleString('es-AR')})`);
+                
+                return disponible;
+            } catch (error) {
+                console.error(`❌ [Disponibilidad] Error con "${value}":`, error);
+                return true;
+            }
+        }
+
+        actualizarOpciones() {
+            console.log('🔄 [Disponibilidad] Actualizando opciones...');
+            const ahora = new Date();
+            console.log(`🕐 [Disponibilidad] Hora actual: ${ahora.toLocaleString('es-AR')}`);
+            
+            const valorSeleccionado = this.selectElement.value;
+            let opcionSeleccionadaDisponible = false;
+            
+            // Limpiar todas las opciones excepto el placeholder
+            while (this.selectElement.options.length > 1) {
+                this.selectElement.remove(1);
+            }
+            
+            // Añadir opciones según disponibilidad
+            let opcionesVisibles = 0;
+            this.opcionesOriginales.forEach((opcionOriginal, value) => {
+                if (this.estaDisponible(value)) {
+                    const nuevaOpcion = document.createElement('option');
+                    nuevaOpcion.value = value;
+                    nuevaOpcion.textContent = opcionOriginal.text;
+                    this.selectElement.appendChild(nuevaOpcion);
+                    
+                    if (valorSeleccionado === value) {
+                        nuevaOpcion.selected = true;
+                        opcionSeleccionadaDisponible = true;
+                    }
+                    
+                    opcionesVisibles++;
+                    console.log(`➕ [Disponibilidad] Mostrando: "${value}"`);
+                } else {
+                    console.log(`➖ [Disponibilidad] Ocultando: "${value}"`);
+                }
+            });
+            
+            if (!opcionSeleccionadaDisponible && valorSeleccionado) {
+                this.selectElement.value = '';
+            }
+            
+            console.log(`📊 [Disponibilidad] ${opcionesVisibles}/${this.opcionesOriginales.size} opciones visibles`);
+        }
+
+        iniciarVerificacionPeriodica() {
+            // Verificar cada 30 segundos
+            this.intervaloVerificacion = setInterval(() => {
+                this.actualizarOpciones();
+            }, 30000);
+            
+            // Verificar en el próximo cambio de minuto
+            const ahora = new Date();
+            const segundosParaProximoMinuto = 60 - ahora.getSeconds();
+            
+            setTimeout(() => {
+                this.actualizarOpciones();
+                setInterval(() => this.actualizarOpciones(), 60000);
+            }, segundosParaProximoMinuto * 1000);
+        }
+    }
+
+    // Inicializar inmediatamente cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('📄 [Disponibilidad] DOM cargado, inicializando controlador...');
+        window.controladorClases = new ControladorDisponibilidadClases();
+        window.REGLAS_DISPONIBILIDAD = REGLAS_DISPONIBILIDAD;
+    });
+    </script>
+
+    <!-- SCRIPT PRINCIPAL DE MATERIAL -->
     <script>
     class MaterialUsuario {
         constructor() {
             this.solicitudes = [];
-            // URL dinámica para Railway
             this.apiBaseUrl = window.location.origin + '/api';
-            console.log('🚀 URL API:', this.apiBaseUrl);
-            this.init();
+            console.log('🚀 [Material] URL API:', this.apiBaseUrl);
+            
+            // Inicializar después de asegurar que el controlador ya está listo
+            setTimeout(() => this.init(), 100);
         }
 
         async init() {
-            console.log('🚀 Inicializando sistema de material...');
+            console.log('🚀 [Material] Inicializando sistema...');
             
-            // Esperar a que authSystem esté disponible
             await this.esperarAuthSystem();
             
             if (!authSystem || !authSystem.isLoggedIn()) {
-                console.log('❌ Usuario no logueado');
+                console.log('❌ [Material] Usuario no logueado');
                 this.mostrarError('Debe iniciar sesión para solicitar material');
-                setTimeout(() => window.location.href = '/index.html', 2000);
                 return;
             }
 
             this.configurarUI();
             await this.probarConexion();
             await this.cargarMisSolicitudes();
+            
+            // Forzar una actualización del controlador después de que todo esté listo
+            if (window.controladorClases) {
+                setTimeout(() => {
+                    console.log('🔧 [Material] Forzando actualización de disponibilidad...');
+                    window.controladorClases.actualizarOpciones();
+                }, 500);
+            }
         }
 
         async esperarAuthSystem() {
@@ -86,14 +242,14 @@
                 const check = setInterval(() => {
                     if (typeof authSystem !== 'undefined' && authSystem.getCurrentUser) {
                         clearInterval(check);
-                        console.log('✅ authSystem disponible');
+                        console.log('✅ [Material] authSystem disponible');
                         resolve();
                     }
                 }, 100);
                 
                 setTimeout(() => {
                     clearInterval(check);
-                    console.log('⚠️ Timeout esperando authSystem');
+                    console.log('⚠️ [Material] Timeout esperando authSystem');
                     resolve();
                 }, 5000);
             });
@@ -101,21 +257,20 @@
 
         async probarConexion() {
             try {
-                console.log('🔍 Probando conexión con API...');
+                console.log('🔍 [Material] Probando conexión con API...');
                 const response = await fetch(`${this.apiBaseUrl}/test/simple`);
                 const text = await response.text();
-                console.log('📄 Respuesta texto:', text);
                 
                 try {
                     const result = JSON.parse(text);
-                    console.log('✅ Conexión API exitosa:', result);
+                    console.log('✅ [Material] Conexión API exitosa:', result);
                     return true;
                 } catch (e) {
-                    console.error('❌ No es JSON válido:', text.substring(0, 200));
+                    console.error('❌ [Material] No es JSON válido:', text.substring(0, 200));
                     return false;
                 }
             } catch (error) {
-                console.error('❌ Error probando conexión API:', error);
+                console.error('❌ [Material] Error probando conexión API:', error);
                 this.mostrarError('Error de conexión con el servidor');
                 return false;
             }
@@ -123,7 +278,7 @@
 
         configurarUI() {
             const usuario = authSystem.getCurrentUser();
-            console.log('👤 Usuario actual:', usuario);
+            console.log('👤 [Material] Usuario actual:', usuario);
             
             if (usuario && usuario.email) {
                 document.getElementById('emailUsuario').value = usuario.email;
@@ -141,17 +296,24 @@
                 e.preventDefault();
                 await this.enviarSolicitud();
             });
+            
+            // Verificar estado actual del select
+            console.log('🔍 [Material] Estado inicial del select:');
+            const select = document.getElementById('claseSeleccionada');
+            for (let i = 0; i < select.options.length; i++) {
+                console.log(`   [${i}] ${select.options[i].value} - ${select.options[i].textContent}`);
+            }
         }
 
         async cargarMisSolicitudes() {
             try {
                 const user = authSystem.getCurrentUser();
                 if (!user || !user._id) {
-                    console.error('❌ Usuario no tiene ID');
+                    console.error('❌ [Material] Usuario no tiene ID');
                     return;
                 }
 
-                console.log('🔍 Cargando mis solicitudes para usuario:', user._id);
+                console.log('🔍 [Material] Cargando mis solicitudes para usuario:', user._id);
                 
                 const response = await fetch(`${this.apiBaseUrl}/material/solicitudes`, {
                     headers: {
@@ -160,27 +322,20 @@
                     }
                 });
 
-                console.log('📊 Status de respuesta:', response.status, response.statusText);
-                
                 if (!response.ok) {
-                    console.error('❌ Error HTTP:', response.status);
-                    const errorText = await response.text();
-                    console.error('📄 Texto de error:', errorText.substring(0, 200));
+                    console.error('❌ [Material] Error HTTP:', response.status);
                     return;
                 }
                 
                 const result = await response.json();
-                console.log('✅ Solicitudes cargadas:', result);
                 
                 if (result.success && result.data) {
                     this.solicitudes = result.data;
-                    console.log(`📋 ${this.solicitudes.length} solicitudes encontradas`);
+                    console.log(`📋 [Material] ${this.solicitudes.length} solicitudes encontradas`);
                     this.mostrarMisSolicitudes();
-                } else {
-                    console.warn('⚠️ No se encontraron solicitudes:', result.message);
                 }
             } catch (error) {
-                console.error('❌ Error cargando mis solicitudes:', error);
+                console.error('❌ [Material] Error cargando mis solicitudes:', error);
             }
         }
 
@@ -208,58 +363,50 @@
             });
         }
 
-async enviarSolicitud() {
-    const clase = document.getElementById('claseSeleccionada').value;
-    const email = document.getElementById('emailUsuario').value;
+        async enviarSolicitud() {
+            const clase = document.getElementById('claseSeleccionada').value;
+            const email = document.getElementById('emailUsuario').value;
 
-    if (!clase) {
-        this.mostrarError('Por favor, seleccione una clase');
-        return;
-    }
+            if (!clase) {
+                this.mostrarError('Por favor, seleccione una clase');
+                return;
+            }
 
-    // Verificar si ya solicitó esta clase
-    if (this.solicitudes.some(s => s.clase === clase)) {
-        this.mostrarError('Ya ha solicitado material para esta clase');
-        return;
-    }
+            if (this.solicitudes.some(s => s.clase === clase)) {
+                this.mostrarError('Ya ha solicitado material para esta clase');
+                return;
+            }
 
-    try {
-        const user = authSystem.getCurrentUser();
-        if (!user || !user._id) {
-            this.mostrarError('Error: Usuario no autenticado correctamente');
-            return;
+            try {
+                const user = authSystem.getCurrentUser();
+                if (!user || !user._id) {
+                    this.mostrarError('Error: Usuario no autenticado correctamente');
+                    return;
+                }
+
+                const solicitudData = {
+                    clase: clase,
+                    email: email
+                };
+
+                console.log('📤 [Material] Enviando solicitud:', solicitudData);
+                
+                const result = await authSystem.makeRequest('/material/solicitudes', solicitudData);
+                
+                console.log('✅ [Material] Resultado del servidor:', result);
+
+                if (result.success) {
+                    this.mostrarExito('✅ Solicitud enviada correctamente');
+                    document.getElementById('claseSeleccionada').value = '';
+                    await this.cargarMisSolicitudes();
+                } else {
+                    this.mostrarError(result.message || 'Error al enviar la solicitud');
+                }
+            } catch (error) {
+                console.error('❌ [Material] Error enviando solicitud:', error);
+                this.mostrarError('Error: ' + error.message);
+            }
         }
-
-        const solicitudData = {
-            clase: clase,
-            email: email
-        };
-
-        console.log('📤 Enviando solicitud:', solicitudData);
-        console.log('👤 ID de usuario:', user._id);
-        
-        // Usar authSystem.makeRequest directamente
-        const result = await authSystem.makeRequest('/material/solicitudes', solicitudData);
-        
-        console.log('✅ Resultado del servidor:', result);
-
-        if (result.success) {
-            this.mostrarExito('✅ Solicitud enviada correctamente');
-            
-            // Limpiar formulario
-            document.getElementById('claseSeleccionada').value = '';
-            
-            // Recargar mis solicitudes
-            await this.cargarMisSolicitudes();
-            
-        } else {
-            this.mostrarError(result.message || 'Error al enviar la solicitud');
-        }
-    } catch (error) {
-        console.error('❌ Error enviando solicitud:', error);
-        this.mostrarError('Error: ' + error.message);
-    }
-}
 
         mostrarExito(mensaje) {
             this.mostrarMensaje(mensaje, 'success');
@@ -281,10 +428,13 @@ async enviarSolicitud() {
         }
     }
 
-    // Inicializar cuando el DOM esté listo
+    // Inicializar MaterialUsuario después de que todo esté listo
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('📄 DOM cargado, inicializando material...');
-        new MaterialUsuario();
+        console.log('📄 [Material] DOM cargado, inicializando MaterialUsuario...');
+        // Pequeño delay para asegurar que el controlador se inicialice primero
+        setTimeout(() => {
+            new MaterialUsuario();
+        }, 50);
     });
     </script>
 </body>
