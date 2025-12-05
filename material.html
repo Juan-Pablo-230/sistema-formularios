@@ -12,12 +12,13 @@
         
         <div class="back-btn-container">
             <button onclick="window.location.href='/index.html'" class="back-btn">← Volver al Menú Principal</button>
+            <button id="logoutBtn" class="back-btn logout-btn">🚪 Cerrar Sesión</button>
         </div>
         
         <div id="statusMessage" class="status-message" style="display: none;"></div>
         
         <form id="materialForm">
-            <div class="form-group">
+            <div class="form-group" id="material">
                 <label for="claseSeleccionada">Seleccionar Clase *</label>
                 <select id="claseSeleccionada" name="clase" required>
                     <option value="">Seleccione una clase</option>
@@ -27,9 +28,9 @@
                 </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="material">
                 <label for="emailUsuario">Correo Electrónico</label>
-                <input type="email" id="emailUsuario" name="email" required>
+                <input type="email" id="emailUsuario" name="email">
             </div>
 
             <button type="submit" class="submit-btn">📧 Solicitar Material</button>
@@ -52,9 +53,7 @@
         </div>
     </div>
 
-    <!-- Primero cargar auth.js y formularios.js para tener las funciones de autenticación -->
     <script src="/js/auth.js"></script>
-    <script src="/js/formularios.js"></script>
     
     <!-- SCRIPT DE CONTROL DE DISPONIBILIDAD - PRIMERO -->
     <script>
@@ -62,7 +61,7 @@
     const REGLAS_DISPONIBILIDAD = {
         "Fundamentos de la Redacción en la Gestión": {
             disponible: {
-                desde: "2025-11-16T00:00:00", // 16 de Noviembre, 00:00hs
+                desde: "2025-11-15T00:00:00", // 15 de Noviembre, 00:00hs
                 hasta: "2025-12-18T23:59:00"   // 18 de Diciembre, 23:59hs
             }
         },
@@ -192,9 +191,16 @@
             }, segundosParaProximoMinuto * 1000);
         }
     }
+
+    // Inicializar inmediatamente cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('📄 [Disponibilidad] DOM cargado, inicializando controlador...');
+        window.controladorClases = new ControladorDisponibilidadClases();
+        window.REGLAS_DISPONIBILIDAD = REGLAS_DISPONIBILIDAD;
+    });
     </script>
 
-    <!-- SCRIPT PRINCIPAL DE MATERIAL CON INTEGRACIÓN DE AUTENTICACIÓN -->
+    <!-- SCRIPT PRINCIPAL DE MATERIAL -->
     <script>
     class MaterialUsuario {
         constructor() {
@@ -202,44 +208,25 @@
             this.apiBaseUrl = window.location.origin + '/api';
             console.log('🚀 [Material] URL API:', this.apiBaseUrl);
             
-            // Inicializar después de asegurar que authSystem está listo
-            this.init();
+            // Inicializar después de asegurar que el controlador ya está listo
+            setTimeout(() => this.init(), 100);
         }
 
         async init() {
-            console.log('🚀 [Material] Inicializando sistema con autenticación...');
+            console.log('🚀 [Material] Inicializando sistema...');
             
-            // Esperar a que el sistema de autenticación esté listo
-            try {
-                await waitForAuthSystem();
-                console.log('✅ [Material] authSystem listo para usar');
-            } catch (error) {
-                console.error('❌ [Material] Error esperando por authSystem:', error);
-                this.mostrarError('Error al cargar el sistema de autenticación. Por favor, recargue la página.');
+            await this.esperarAuthSystem();
+            
+            if (!authSystem || !authSystem.isLoggedIn()) {
+                console.log('❌ [Material] Usuario no logueado');
+                this.mostrarError('Debe iniciar sesión para solicitar material');
+                setTimeout(() => window.location.href = '/index.html', 2000);
                 return;
             }
-            
-            // Verificar autenticación
-            if (!isLoggedInSafe()) {
-                try {
-                    console.log('🔐 [Material] Usuario no logueado, mostrando modal de login...');
-                    await authSystem.showLoginModal();
-                    console.log('✅ [Material] Usuario autenticado:', getCurrentUserSafe());
-                } catch (error) {
-                    console.log('❌ [Material] Usuario canceló el login');
-                    window.location.href = '../index.html';
-                    return;
-                }
-            }
-            
-            // Ahora configurar UI con usuario autenticado
+
             this.configurarUI();
             await this.probarConexion();
             await this.cargarMisSolicitudes();
-            
-            // Inicializar controlador de disponibilidad
-            window.controladorClases = new ControladorDisponibilidadClases();
-            window.REGLAS_DISPONIBILIDAD = REGLAS_DISPONIBILIDAD;
             
             // Forzar una actualización del controlador después de que todo esté listo
             if (window.controladorClases) {
@@ -248,11 +235,24 @@
                     window.controladorClases.actualizarOpciones();
                 }, 500);
             }
-            
-            // Agregar botón de logout
-            this.agregarBotonLogout();
-            
-            console.log('✅ [Material] Sistema inicializado correctamente');
+        }
+
+        async esperarAuthSystem() {
+            return new Promise((resolve) => {
+                const check = setInterval(() => {
+                    if (typeof authSystem !== 'undefined' && authSystem.getCurrentUser) {
+                        clearInterval(check);
+                        console.log('✅ [Material] authSystem disponible');
+                        resolve();
+                    }
+                }, 100);
+                
+                setTimeout(() => {
+                    clearInterval(check);
+                    console.log('⚠️ [Material] Timeout esperando authSystem');
+                    resolve();
+                }, 5000);
+            });
         }
 
         async probarConexion() {
@@ -277,19 +277,21 @@
         }
 
         configurarUI() {
-            const usuario = getCurrentUserSafe();
+            const usuario = authSystem.getCurrentUser();
             console.log('👤 [Material] Usuario actual:', usuario);
             
             if (usuario && usuario.email) {
-                // AUTOMÁTICO: Completar email del usuario logueado
                 document.getElementById('emailUsuario').value = usuario.email;
-                console.log('✅ [Material] Email autocompletado:', usuario.email);
             } else {
                 this.mostrarError('No se pudo obtener información del usuario');
                 return;
             }
 
-            // Configurar envío del formulario
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                authSystem.logout();
+                window.location.href = '/index.html';
+            });
+
             document.getElementById('materialForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await this.enviarSolicitud();
@@ -301,73 +303,11 @@
             for (let i = 0; i < select.options.length; i++) {
                 console.log(`   [${i}] ${select.options[i].value} - ${select.options[i].textContent}`);
             }
-            
-            // Si es admin, mostrar opciones especiales (opcional)
-            if (isAdminSafe()) {
-                this.mostrarOpcionesAdmin();
-            }
-        }
-
-        agregarBotonLogout() {
-            const backBtnContainer = document.querySelector('.back-btn-container');
-            if (backBtnContainer && isLoggedInSafe()) {
-                const logoutBtn = document.createElement('button');
-                logoutBtn.textContent = 'Cerrar Sesión';
-                logoutBtn.className = 'back-btn logout-btn';
-                logoutBtn.onclick = function() {
-                    if (authSystemReady && authSystem && typeof authSystem.logout === 'function') {
-                        authSystem.logout();
-                    }
-                    window.location.reload();
-                };
-                backBtnContainer.appendChild(logoutBtn);
-            }
-        }
-
-        mostrarOpcionesAdmin() {
-            const backBtnContainer = document.querySelector('.back-btn-container');
-            
-            if (backBtnContainer && isLoggedInSafe() && isAdminSafe()) {
-                // Limpiar botones existentes (excepto el primero)
-                const existingButtons = backBtnContainer.querySelectorAll('button');
-                for (let i = 1; i < existingButtons.length; i++) {
-                    existingButtons[i].remove();
-                }
-                
-                // Agregar botón de panel de administración
-                const adminBtn = document.createElement('button');
-                adminBtn.textContent = '📊 Ir al Panel de Administración';
-                adminBtn.className = 'back-btn admin-panel-btn';
-                adminBtn.onclick = function() {
-                    window.location.href = '/admin/dashboard.html';
-                };
-                backBtnContainer.appendChild(adminBtn);
-                
-                // Agregar botón de logout
-                const logoutBtn = document.createElement('button');
-                logoutBtn.textContent = 'Cerrar Sesión';
-                logoutBtn.className = 'back-btn logout-btn';
-                logoutBtn.onclick = function() {
-                    if (authSystemReady && authSystem && typeof authSystem.logout === 'function') {
-                        authSystem.logout();
-                    }
-                    window.location.reload();
-                };
-                backBtnContainer.appendChild(logoutBtn);
-                
-                // Agregar info de admin
-                const adminInfo = document.createElement('div');
-                adminInfo.className = 'admin-info';
-                adminInfo.innerHTML = `
-                    <span style="color: #667eea; font-weight: bold;">👤 Modo Administrador - Materiales</span>
-                `;
-                backBtnContainer.appendChild(adminInfo);
-            }
         }
 
         async cargarMisSolicitudes() {
             try {
-                const user = getCurrentUserSafe();
+                const user = authSystem.getCurrentUser();
                 if (!user || !user._id) {
                     console.error('❌ [Material] Usuario no tiene ID');
                     return;
@@ -375,8 +315,19 @@
 
                 console.log('🔍 [Material] Cargando mis solicitudes para usuario:', user._id);
                 
-                // Usar la función segura para hacer requests
-                const result = await makeRequestSafe('/material/solicitudes', null, 'GET');
+                const response = await fetch(`${this.apiBaseUrl}/material/solicitudes`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': user._id
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error('❌ [Material] Error HTTP:', response.status);
+                    return;
+                }
+                
+                const result = await response.json();
                 
                 if (result.success && result.data) {
                     this.solicitudes = result.data;
@@ -421,19 +372,13 @@
                 return;
             }
 
-            // Verificar si la clase está disponible
-            if (window.controladorClases && !window.controladorClases.estaDisponible(clase)) {
-                this.mostrarError('Esta clase no está disponible en este momento');
-                return;
-            }
-
             if (this.solicitudes.some(s => s.clase === clase)) {
                 this.mostrarError('Ya ha solicitado material para esta clase');
                 return;
             }
 
             try {
-                const user = getCurrentUserSafe();
+                const user = authSystem.getCurrentUser();
                 if (!user || !user._id) {
                     this.mostrarError('Error: Usuario no autenticado correctamente');
                     return;
@@ -446,8 +391,7 @@
 
                 console.log('📤 [Material] Enviando solicitud:', solicitudData);
                 
-                // Usar la función segura para hacer requests
-                const result = await makeRequestSafe('/material/solicitudes', solicitudData);
+                const result = await authSystem.makeRequest('/material/solicitudes', solicitudData);
                 
                 console.log('✅ [Material] Resultado del servidor:', result);
 
@@ -484,13 +428,13 @@
         }
     }
 
-    // Inicializar cuando el DOM esté listo
-    document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar MaterialUsuario después de que todo esté listo
+    document.addEventListener('DOMContentLoaded', () => {
         console.log('📄 [Material] DOM cargado, inicializando MaterialUsuario...');
-        // Pequeño delay para asegurar que los scripts se carguen
+        // Pequeño delay para asegurar que el controlador se inicialice primero
         setTimeout(() => {
             new MaterialUsuario();
-        }, 100);
+        }, 50);
     });
     </script>
 </body>
