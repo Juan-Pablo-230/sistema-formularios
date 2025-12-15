@@ -302,6 +302,7 @@ body {
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow-md);
+    text-align: center;
 }
 
 .class-card::before {
