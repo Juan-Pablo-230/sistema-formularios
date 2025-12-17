@@ -3,8 +3,6 @@ const cors = require('cors');
 const { ObjectId } = require('mongodb');
 const path = require('path');
 const fs = require('fs');
-const cookieParser = require('cookie-parser');
-const helmet = require('helmet');
 require('dotenv').config();
 
 const { connectToDatabase, getDB, mongoDB } = require('./database');
@@ -19,90 +17,10 @@ console.log('- Node version:', process.version);
 console.log('- PORT:', PORT);
 console.log('- MONGODB_URI:', process.env.MONGODB_URI ? 'DEFINIDA' : 'NO DEFINIDA');
 
-// ==================== MIDDLEWARES DE SEGURIDAD ====================
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "http://localhost:3000", "https://localhost:3000"],
-        }
-    }
-}));
-
-app.use(cookieParser());
-
-// ==================== CONFIGURACIÓN CORS MEJORADA ====================
-app.use(cors({
-    origin: function(origin, callback) {
-        // Permite solicitudes sin origen (como aplicaciones móviles o curl)
-        if (!origin) return callback(null, true);
-        
-        // Lista de orígenes permitidos
-        const allowedOrigins = [
-            'http://localhost:3000',
-            'http://localhost:5173',
-            'https://localhost:3000',
-            'http://127.0.0.1:3000',
-            'https://127.0.0.1:3000'
-        ];
-        
-        // Para desarrollo, permitir cualquier origen
-        // En producción, descomenta la siguiente línea y comenta la return callback(null, true)
-        // if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
-        //     return callback(null, true);
-        // } else {
-        //     return callback(new Error('Origen no permitido por CORS'));
-        // }
-        
-        return callback(null, true);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'user-id', 'X-Requested-With'],
-    exposedHeaders: ['set-cookie', 'Authorization'],
-    maxAge: 86400 // 24 horas
-}));
-
-// Middleware de seguridad adicional
-app.use((req, res, next) => {
-    // Headers de seguridad
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    
-    // Headers CORS adicionales
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    // Configuración para Railway/HTTPS
-    if (process.env.NODE_ENV === 'production') {
-        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-        req.isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    }
-    
-    next();
-});
-
-// Manejo de preflight OPTIONS
-app.options('*', cors());
-
+// ==================== MIDDLEWARES BÁSICOS ====================
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname), {
-    setHeaders: (res, path) => {
-        // Headers de seguridad para archivos estáticos
-        if (path.endsWith('.js')) {
-            res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-        } else if (path.endsWith('.css')) {
-            res.setHeader('Content-Type', 'text/css; charset=UTF-8');
-        } else if (path.endsWith('.html')) {
-            res.setHeader('Content-Type', 'text/html; charset=UTF-8');
-        }
-    }
-}));
+app.use(express.static(path.join(__dirname)));
 
 // ==================== RUTAS DE DIAGNÓSTICO ====================
 console.log('=== ENVIRONMENT VARIABLES CHECK ===');
@@ -117,8 +35,7 @@ app.get('/api/health', (req, res) => {
         message: 'Servidor funcionando',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        mongoDB: mongoDB.isConnected ? 'CONECTADO' : 'NO CONECTADO',
-        cors: 'Configurado correctamente'
+        mongoDB: mongoDB.isConnected ? 'CONECTADO' : 'NO CONECTADO'
     });
 });
 
@@ -157,8 +74,6 @@ app.get('/api/env-check', (req, res) => {
     res.json({
         mongoDB_URI: process.env.MONGODB_URI ? 'DEFINED' : 'NOT DEFINED',
         mongoDB_URI_length: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
-        node_env: process.env.NODE_ENV || 'development',
-        port: PORT,
         allVariables: Object.keys(process.env).sort()
     });
 });
@@ -205,14 +120,6 @@ app.post('/api/auth/login', async (req, res) => {
 
         // Remover password de la respuesta
         const { password: _, ...usuarioSinPassword } = usuario;
-        
-        // Configurar cookie de sesión segura
-        res.cookie('session_id', usuario._id.toString(), {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 24 * 60 * 60 * 1000 // 1 día
-        });
         
         res.json({ 
             success: true, 
@@ -1452,16 +1359,6 @@ app.use('*', (req, res) => {
     } else {
         res.sendFile(path.join(__dirname, 'index.html'));
     }
-});
-
-// ==================== MANEJO DE ERRORES GLOBAL ====================
-app.use((err, req, res, next) => {
-    console.error('❌ Error global:', err.stack);
-    res.status(500).json({
-        success: false,
-        message: 'Error interno del servidor',
-        error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno'
-    });
 });
 
 // ==================== INICIAR SERVIDOR ====================

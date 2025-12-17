@@ -1,10 +1,9 @@
-// auth.js - Sistema de Autenticación Unificado
-console.log('auth.js cargado correctamente - Versión Unificada');
+console.log('auth.js cargado correctamente - MongoDB Version');
 
 class AuthSystem {
     constructor() {
-        console.log('AuthSystem inicializado');
-        // URL dinámica basada en la ubicación actual
+        console.log('AuthSystem MongoDB inicializado');
+        // URL dinámica para Railway
         this.apiBaseUrl = window.location.origin + '/api';
         this.currentUser = null;
         this.init();
@@ -59,7 +58,7 @@ class AuthSystem {
     }
 
     async init() {
-        console.log('Inicializando sistema de auth...');
+        console.log('Inicializando sistema de auth con MongoDB...');
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
             this.currentUser = JSON.parse(savedUser);
@@ -79,7 +78,7 @@ class AuthSystem {
             this.currentUser = result.data;
             localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
             
-            console.log('✅ Login exitoso:', this.currentUser.apellidoNombre);
+            console.log('✅ Login exitoso MongoDB:', this.currentUser.apellidoNombre);
             return this.currentUser;
             
         } catch (error) {
@@ -143,31 +142,7 @@ class AuthSystem {
     async verifyCurrentPassword(password) {
         const user = this.getCurrentUser();
         if (!user) return false;
-        
-        try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    identifier: user.email,
-                    password: password
-                })
-            });
-            
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                return false;
-            }
-            
-            const result = await response.json();
-            return result.success;
-            
-        } catch (error) {
-            console.error('Error verificando contraseña:', error);
-            return false;
-        }
+        return user.password === password;
     }
 
     async checkLegajoExists(legajo) {
@@ -194,7 +169,7 @@ class AuthSystem {
         if (this.isLoggedIn()) return Promise.resolve(this.currentUser);
         
         return new Promise((resolve, reject) => {
-            console.log('Mostrando modal de login...');
+            console.log('Mostrando modal de login MongoDB...');
             
             const overlay = document.createElement('div');
             overlay.className = 'login-overlay';
@@ -381,7 +356,6 @@ class AuthSystem {
                                     <option value="Turno tarde">Turno tarde</option>
                                     <option value="Turno noche A">Turno noche A</option>
                                     <option value="Turno noche B">Turno noche B</option>
-                                    <option value="Turno intermedio">Turno intermedio</option>
                                     <option value="Sábado, Domingo y feriado">Sábado, Domingo y feriado</option>
                                 </select>
                             </div>
@@ -597,5 +571,4 @@ class AuthSystem {
     }
 }
 
-// Crear instancia global
 const authSystem = new AuthSystem();

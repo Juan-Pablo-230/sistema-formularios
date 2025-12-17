@@ -1063,7 +1063,6 @@ FIN DE LA LISTA
                                 <option value="Turno tarde">Turno tarde</option>
                                 <option value="Turno noche A">Turno noche A</option>
                                 <option value="Turno noche B">Turno noche B</option>
-                                <option value="Turno intermedio">Turno intermedio</option>
                                 <option value="Sábado, Domingo y feriado">Sábado, Domingo y feriado</option>
                             </select>
                         </div>
@@ -1178,7 +1177,6 @@ FIN DE LA LISTA
                                 <option value="Turno tarde" ${usuario.turno === 'Turno tarde' ? 'selected' : ''}>Turno tarde</option>
                                 <option value="Turno noche A" ${usuario.turno === 'Turno noche A' ? 'selected' : ''}>Turno noche A</option>
                                 <option value="Turno noche B" ${usuario.turno === 'Turno noche B' ? 'selected' : ''}>Turno noche B</option>
-                                <option value="Turno intermedio" ${usuario.turno === 'Turno intermedio' ? 'selected' : ''}>Turno intermedio</option>
                                 <option value="Sábado, Domingo y feriado" ${usuario.turno === 'Sábado, Domingo y feriado' ? 'selected' : ''}>Sábado, Domingo y feriado</option>
                             </select>
                         </div>
