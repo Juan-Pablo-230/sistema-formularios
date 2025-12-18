@@ -1,8 +1,9 @@
-console.log('auth.js cargado correctamente - Sistema de Autenticación Unificado');
+console.log('auth.js cargado correctamente - MongoDB Version');
 
 class AuthSystem {
     constructor() {
-        console.log('AuthSystem inicializado');
+        console.log('AuthSystem MongoDB inicializado');
+        // URL dinámica para Railway
         this.apiBaseUrl = window.location.origin + '/api';
         this.currentUser = null;
         this.init();
@@ -15,6 +16,7 @@ class AuthSystem {
                 'Content-Type': 'application/json',
             };
             
+            // Añadir user-id si el usuario está logueado
             if (user && user._id) {
                 headers['user-id'] = user._id;
             }
@@ -29,6 +31,7 @@ class AuthSystem {
             }
             
             console.log('🌐 Haciendo request a:', `${this.apiBaseUrl}${endpoint}`);
+            console.log('👤 User ID en headers:', user?._id || 'No logueado');
             
             const response = await fetch(`${this.apiBaseUrl}${endpoint}`, options);
             
@@ -40,7 +43,7 @@ class AuthSystem {
             } else {
                 const text = await response.text();
                 console.error('❌ Respuesta no es JSON:', text.substring(0, 200));
-                throw new Error(`Error del servidor: ${response.status}`);
+                throw new Error(`El servidor devolvió: ${response.status} ${response.statusText}`);
             }
             
             if (!response.ok || !result.success) {
@@ -54,6 +57,17 @@ class AuthSystem {
         }
     }
 
+    async init() {
+        console.log('Inicializando sistema de auth con MongoDB...');
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+            this.currentUser = JSON.parse(savedUser);
+            console.log('Usuario encontrado en localStorage:', this.currentUser);
+        } else {
+            console.log('No hay usuario en localStorage');
+        }
+    }
+
     async login(identifier, password) {
         try {
             const result = await this.makeRequest('/auth/login', {
@@ -64,7 +78,7 @@ class AuthSystem {
             this.currentUser = result.data;
             localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
             
-            console.log('✅ Login exitoso:', this.currentUser.apellidoNombre);
+            console.log('✅ Login exitoso MongoDB:', this.currentUser.apellidoNombre);
             return this.currentUser;
             
         } catch (error) {
@@ -72,65 +86,47 @@ class AuthSystem {
         }
     }
 
-    async register(userData) {
-        return await this.makeRequest('/auth/register', userData);
-    }
-
-    async checkLegajo(legajo) {
+    async saveUserToCloud(userData) {
         try {
-            const result = await this.makeRequest(`/auth/check-legajo/${legajo}`, null, 'GET');
-            return result.data.exists;
+            const result = await this.makeRequest('/auth/register', userData);
+            return true;
         } catch (error) {
-            console.error('Error verificando legajo:', error);
-            return false;
+            throw error;
         }
     }
 
-    // Alias para mantener compatibilidad
-    async checkLegajoExists(legajo) {
-        return await this.checkLegajo(legajo);
+    async createUserByAdmin(userData) {
+        try {
+            const result = await this.makeRequest('/admin/usuarios', userData);
+            return true;
+        } catch (error) {
+            throw error;
+        }
     }
 
-    // Métodos de estado y utilidad
-    isLoggedIn() { 
-        return this.currentUser !== null; 
+    logout() {
+        this.currentUser = null;
+        localStorage.removeItem('currentUser');
     }
-    
-    isAdmin() { 
-        return this.currentUser?.role === 'admin'; 
+
+    isLoggedIn() {
+        return this.currentUser !== null;
     }
-    
-    isAdvanced() { 
-        return this.currentUser?.role === 'advanced'; 
+
+    isAdmin() {
+        return this.currentUser?.role === 'admin';
     }
-    
-    // Alias para mantener compatibilidad
-    isAdvancedUser() { 
-        return this.isAdvanced(); 
+
+    isAdvancedUser() {
+        return this.currentUser?.role === 'advanced';
     }
-    
+
     isRegularUser() {
         return this.currentUser?.role === 'user' || !this.currentUser?.role;
     }
 
-    getCurrentUser() { 
-        return this.currentUser; 
-    }
-    
-    logout() { 
-        this.currentUser = null; 
-        localStorage.removeItem('currentUser'); 
-        console.log('✅ Sesión cerrada');
-    }
-
-    init() {
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
-            this.currentUser = JSON.parse(savedUser);
-            console.log('Usuario encontrado en localStorage:', this.currentUser);
-        } else {
-            console.log('No hay usuario en localStorage');
-        }
+    getCurrentUser() {
+        return this.currentUser;
     }
 
     validatePassword(password, confirmPassword) {
@@ -143,22 +139,37 @@ class AuthSystem {
         return true;
     }
 
-    getUserRoleText(role = null) {
-        const userRole = role || this.currentUser?.role;
+    async verifyCurrentPassword(password) {
+        const user = this.getCurrentUser();
+        if (!user) return false;
+        return user.password === password;
+    }
+
+    async checkLegajoExists(legajo) {
+        try {
+            const result = await this.makeRequest(`/auth/check-legajo/${legajo}`, null, 'GET');
+            return result.data.exists;
+        } catch (error) {
+            console.error('Error verificando legajo:', error);
+            return false;
+        }
+    }
+
+    getUserRoleText(role) {
         const roles = {
             'admin': '👑 Administrador',
             'advanced': '⭐ Usuario Avanzado', 
             'user': '👤 Usuario Regular'
         };
-        return roles[userRole] || '👤 Usuario';
+        return roles[role] || '👤 Usuario';
     }
 
-    // MÉTODO DE LOGIN MODAL (necesario para profile-updater.js)
+    // MÉTODO DE LOGIN MODAL
     showLoginModal() {
         if (this.isLoggedIn()) return Promise.resolve(this.currentUser);
         
         return new Promise((resolve, reject) => {
-            console.log('Mostrando modal de login...');
+            console.log('Mostrando modal de login MongoDB...');
             
             const overlay = document.createElement('div');
             overlay.className = 'login-overlay';
@@ -231,7 +242,7 @@ class AuthSystem {
                             color: #ffd166;
                             text-align: center;
                         ">
-                            ⚠️ No utilice claves de uso específico
+                            ⚠️ No utilice claves de uso específico (bancarias, operadoras, etc.)
                         </div>
                         <form id="loginFormElement">
                             <div class="form-group" style="margin-bottom: 20px; display: block;">
@@ -302,7 +313,7 @@ class AuthSystem {
                             color: #ffd166;
                             text-align: center;
                         ">
-                            ⚠️ No utilice claves de uso específico
+                            ⚠️ No utilice claves de uso específico (bancarias, operadoras, etc.)
                         </div>
                         <form id="registerFormElement">
                             <div class="form-group" style="margin-bottom: 15px; display: block;">
@@ -548,19 +559,11 @@ class AuthSystem {
                 
                 try {
                     this.validatePassword(userData.password, confirmPassword);
-                    await this.register(userData);
+                    await this.saveUserToCloud(userData);
                     showMessage('registerForm', '✅ Registro exitoso. Ahora puedes iniciar sesión.', 'success');
                     setTimeout(() => switchTab('login'), 2000);
                 } catch (error) {
                     showMessage('registerForm', error.message, 'error');
-                }
-            });
-            
-            // Cerrar modal al hacer clic fuera del contenido
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) {
-                    document.body.removeChild(overlay);
-                    reject(new Error('Login cancelado por el usuario'));
                 }
             });
             
@@ -569,5 +572,4 @@ class AuthSystem {
     }
 }
 
-// Crear instancia global
 const authSystem = new AuthSystem();
