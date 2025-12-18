@@ -139,8 +139,11 @@ async function inicializarAplicacion() {
     // Verificar autenticación
     if (!authSystem.isLoggedIn?.()) {
         try {
+            // Usar showLoginModal en lugar de authSystem.showLoginModal()
             await authSystem.showLoginModal();
+            console.log('✅ Usuario autenticado');
         } catch (error) {
+            console.log('❌ Usuario canceló el login');
             window.location.href = '../index.html';
             return;
         }
