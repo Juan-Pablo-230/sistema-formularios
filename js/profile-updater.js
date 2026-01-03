@@ -32,7 +32,7 @@ class ProfileUpdater {
                     console.log(`✅ ${this.availableLegajos.size} legajos cargados desde MongoDB`);
                 }
             } else {
-                console.warn('⚠️ No se pudieron cargar los legajos desde MongoDB');
+                console.error('⚠️ No se pudieron cargar los legajos desde MongoDB');
             }
 
         } catch (error) {

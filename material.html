@@ -22,8 +22,12 @@
                 <label for="claseSeleccionada">Seleccionar Clase *</label>
                 <select id="claseSeleccionada" name="clase" required>
                     <option value="">Seleccione una clase</option>
-                    <option value="Fundamentos de la Redacción en la Gestión">Fundamentos de la Redacción en la Gestión</option>
-                    <option value="Proceso de admisión">Proceso de admisión</option>
+                    <option value="Auditoría Médica">Auditoría Médica</option>
+                    <option value="Elaboración de Protocolos">Elaboración de Protocolos</option>
+                    <option value="Rotación de Personal">Rotación de Personal</option>
+                    <option value="Ausentismo">Ausentismo</option>
+                    <option value="Stroke / IAM">Stroke / IAM</option>
+                    <option value="CoPaP">CoPaP</option>
                     <!-- Puedes añadir más opciones aquí siempre que quieras -->
                 </select>
             </div>
@@ -59,16 +63,40 @@
     <script>
     // Configuración de disponibilidad de las clases
     const REGLAS_DISPONIBILIDAD = {
-        "Fundamentos de la Redacción en la Gestión": {
+        "Auditoría Médica": {
             disponible: {
-                desde: "2025-11-15T00:00:00", // 15 de Noviembre, 00:00hs
-                hasta: "2025-12-18T12:00:00"   // 18 de Diciembre, 12:00hs
+                desde: "2026-01-27T13:00:00", // 27 de Enero, 13:00hs
+                hasta: "2026-02-29T11:00:00"   // 29 de Enero, 11:00hs
             }
         },
-        "Proceso de admisión": {
+        "Elaboración de Protocolos": {
             disponible: {
-                desde: "2025-11-16T00:00:00", // 16 de Noviembre, 00:00hs
-                hasta: "2025-12-19T12:00:00"   // 19 de Diciembre, 12:00hs
+                desde: "2026-02-05T13:00:00", // 5 de Febrero, 13:00hs
+                hasta: "2026-02-07T11:00:00"   // 7 de Febrero, 11:00hs
+            }
+        },
+        "Rotación de Personal": {
+            disponible: {
+                desde: "2026-02-11T17:00:00", // 11 de Febrero, 17:00hs
+                hasta: "2026-02-13T11:00:00"   // 13 de Febrero, 11:00hs
+            }
+        },
+        "Ausentismo": {
+            disponible: {
+                desde: "2026-02-19T13:00:00", // 19 de Febrero, 13:00hs
+                hasta: "2026-02-21T11:00:00"   // 21 de Febrero, 11:00hs
+            }
+        },
+        "Stroke / IAM": {
+            disponible: {
+                desde: "2026-02-24T13:00:00", // 24 de Febrero, 13:00hs
+                hasta: "2026-02-26T11:00:00"   // 26 de Febrero, 11:00hs
+            }
+        },
+        "CoPaP": {
+            disponible: {
+                desde: "2026-02-25T17:00:00", // 25 de Febrero, 17:00hs
+                hasta: "2026-02-27T11:00:00"   // 27 de Febrero, 11:00hs
             }
         }
     };
