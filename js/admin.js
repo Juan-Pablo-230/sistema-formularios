@@ -110,7 +110,6 @@ async loadSolicitudesMaterial() {
         if (!solicitudes || solicitudes.length === 0) {
             document.getElementById('totalSolicitudes').textContent = '0';
             document.getElementById('solicitudesHoy').textContent = '0';
-            document.getElementById('clasePopular').textContent = '-';
             return;
         }
         
@@ -120,26 +119,8 @@ async loadSolicitudesMaterial() {
             s.fechaSolicitud && s.fechaSolicitud.split('T')[0] === hoy
         ).length;
         
-        // Calcular clase más popular
-        const clasesCount = {};
-        solicitudes.forEach(s => {
-            if (s.clase) {
-                clasesCount[s.clase] = (clasesCount[s.clase] || 0) + 1;
-            }
-        });
-        
-        let clasePopular = '-';
-        let maxCount = 0;
-        Object.entries(clasesCount).forEach(([clase, count]) => {
-            if (count > maxCount) {
-                maxCount = count;
-                clasePopular = clase;
-            }
-        });
-        
         document.getElementById('totalSolicitudes').textContent = total;
         document.getElementById('solicitudesHoy').textContent = solicitudesHoy;
-        document.getElementById('clasePopular').textContent = clasePopular;
     }
 
     crearFiltroClasesMaterial(solicitudes) {
@@ -780,7 +761,6 @@ FIN DE LA LISTA
             total: inscripciones.length,
             porClase: {},
             porTurno: {},
-            ultimaInscripcion: null
         };
 
         inscripciones.forEach(insc => {
@@ -792,22 +772,9 @@ FIN DE LA LISTA
                 stats.porTurno[insc.turno] = (stats.porTurno[insc.turno] || 0) + 1;
             }
             
-            if (insc.fecha) {
-                if (!stats.ultimaInscripcion || new Date(insc.fecha) > new Date(stats.ultimaInscripcion.fecha)) {
-                    stats.ultimaInscripcion = insc;
-                }
-            }
         });
 
         document.getElementById('totalInscripciones').textContent = stats.total;
-        
-        if (stats.ultimaInscripcion) {
-            const fecha = new Date(stats.ultimaInscripcion.fecha).toLocaleString('es-AR');
-            document.getElementById('ultimaInscripcion').textContent = 
-                `${stats.ultimaInscripcion.usuario?.apellidoNombre} - ${fecha}`;
-        } else {
-            document.getElementById('ultimaInscripcion').textContent = 'No hay inscripciones';
-        }
         
         console.log('📈 Estadísticas calculadas MongoDB:', stats);
     }
