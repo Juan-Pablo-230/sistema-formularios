@@ -167,77 +167,109 @@ async loadSolicitudesMaterial() {
     this.actualizarBotonExportarMaterial();
 }
 
-    actualizarTablaMaterial() {
-        const tbody = document.getElementById('materialBodyAdmin');
-        if (!tbody) return;
-        
-        tbody.innerHTML = '';
-        
-        // Filtrar solicitudes
-        let solicitudesFiltradas = this.solicitudesMaterialData;
-        if (this.filtroClaseMaterialActual && this.filtroClaseMaterialActual !== 'todas') {
-            solicitudesFiltradas = solicitudesFiltradas.filter(s => 
-                s.clase === this.filtroClaseMaterialActual
-            );
-        }
-        
-        // Ordenar por fecha más reciente
-        solicitudesFiltradas.sort((a, b) => 
-            new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud)
+actualizarTablaMaterial() {
+    const tbody = document.getElementById('materialBodyAdmin');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    // Filtrar solicitudes
+    let solicitudesFiltradas = this.solicitudesMaterialData;
+    
+    // Lógica de filtrado corregida
+    if (this.filtroClaseMaterialActual === 'todas') {
+        // No filtrar - mostrar todas
+        console.log('📋 Mostrando TODAS las solicitudes');
+    } else if (this.filtroClaseMaterialActual && this.filtroClaseMaterialActual !== '') {
+        // Filtrar por clase específica
+        solicitudesFiltradas = solicitudesFiltradas.filter(s => 
+            s.clase === this.filtroClaseMaterialActual
         );
+        console.log(`📋 Mostrando solicitudes de clase: ${this.filtroClaseMaterialActual}`);
+    } else {
+        // Cuando está vacío o es "Seleccione una clase" - mostrar vacío
+        console.log('📋 Mostrando NINGUNA solicitud (clase no seleccionada)');
+        solicitudesFiltradas = [];
+    }
+    
+    // Ordenar por fecha más reciente
+    solicitudesFiltradas.sort((a, b) => 
+        new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud)
+    );
+    
+    if (solicitudesFiltradas.length === 0) {
+        let mensaje = 'No hay solicitudes de material';
         
-        if (solicitudesFiltradas.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" style="text-align: center; color: #666; padding: 20px;">
-                        No hay solicitudes de material ${this.filtroClaseMaterialActual !== 'todas' ? 'para esta clase' : ''}
-                    </td>
-                </tr>
-            `;
-            return;
+        if (this.filtroClaseMaterialActual === '') {
+            mensaje = 'Seleccione una clase para ver las solicitudes';
+        } else if (this.filtroClaseMaterialActual && this.filtroClaseMaterialActual !== 'todas') {
+            mensaje = `No hay solicitudes de material para "${this.filtroClaseMaterialActual}"`;
         }
         
-        solicitudesFiltradas.forEach((solicitud, index) => {
-            const row = document.createElement('tr');
-            
-            const fecha = solicitud.fechaSolicitud ? 
-                new Date(solicitud.fechaSolicitud).toLocaleString('es-AR') : 
-                'Fecha no disponible';
-            
-            const emailLink = solicitud.email ? 
-                `<a href="mailto:${solicitud.email}" class="email-link">${solicitud.email}</a>` : 
-                'N/A';
-            
-            row.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${solicitud.usuario?.apellidoNombre || 'N/A'}</td>
-                <td>${solicitud.usuario?.legajo || 'N/A'}</td>
-                <td>${solicitud.clase || 'N/A'}</td>
-                <td>${emailLink}</td>
-                <td>${fecha}</td>
-                <td>
-                    <button class="btn-small btn-danger eliminar-solicitud" 
-                            data-id="${solicitud._id}" 
-                            title="Eliminar solicitud">
-                        🗑️
-                    </button>
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; color: #666; padding: 20px;">
+                    ${mensaje}
                 </td>
-            `;
-            
-            tbody.appendChild(row);
-        });
+            </tr>
+        `;
         
         // Actualizar contador
         document.getElementById('contadorMaterialAdmin').textContent = 
-            `${solicitudesFiltradas.length} solicitudes${this.filtroClaseMaterialActual !== 'todas' ? ' para esta clase' : ' en total'}`;
-        
-        // Agregar eventos a los botones de eliminar
-        document.querySelectorAll('.eliminar-solicitud').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.eliminarSolicitudMaterial(e.target.dataset.id);
-            });
-        });
+            '0 solicitudes';
+            
+        return;
     }
+    
+    solicitudesFiltradas.forEach((solicitud, index) => {
+        const row = document.createElement('tr');
+        
+        const fecha = solicitud.fechaSolicitud ? 
+            new Date(solicitud.fechaSolicitud).toLocaleString('es-AR') : 
+            'Fecha no disponible';
+        
+        const emailLink = solicitud.email ? 
+            `<a href="mailto:${solicitud.email}" class="email-link">${solicitud.email}</a>` : 
+            'N/A';
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${solicitud.usuario?.apellidoNombre || 'N/A'}</td>
+            <td>${solicitud.usuario?.legajo || 'N/A'}</td>
+            <td>${solicitud.clase || 'N/A'}</td>
+            <td>${emailLink}</td>
+            <td>${fecha}</td>
+            <td>
+                <button class="btn-small btn-danger eliminar-solicitud" 
+                        data-id="${solicitud._id}" 
+                        title="Eliminar solicitud">
+                    🗑️
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    // Actualizar contador
+    let textoContador = '';
+    if (this.filtroClaseMaterialActual === 'todas') {
+        textoContador = `${solicitudesFiltradas.length} solicitudes en total`;
+    } else if (this.filtroClaseMaterialActual && this.filtroClaseMaterialActual !== '') {
+        textoContador = `${solicitudesFiltradas.length} solicitudes para "${this.filtroClaseMaterialActual}"`;
+    } else {
+        textoContador = 'Seleccione una clase';
+    }
+    
+    document.getElementById('contadorMaterialAdmin').textContent = textoContador;
+    
+    // Agregar eventos a los botones de eliminar
+    document.querySelectorAll('.eliminar-solicitud').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            this.eliminarSolicitudMaterial(e.target.dataset.id);
+        });
+    });
+}
 
     async eliminarSolicitudMaterial(solicitudId) {
         if (!confirm('¿Está seguro de que desea eliminar esta solicitud de material?')) {
@@ -268,16 +300,22 @@ async loadSolicitudesMaterial() {
     const exportBtn = document.getElementById('btnExportarCorreosAdmin');
     if (!exportBtn) return;
     
-    // Mostrar el botón solo cuando hay una clase específica seleccionada
+    // Mostrar botón solo cuando hay una clase específica seleccionada
     const tieneClaseEspecifica = this.filtroClaseMaterialActual && 
                                   this.filtroClaseMaterialActual !== '' && 
                                   this.filtroClaseMaterialActual !== 'todas';
     
     if (tieneClaseEspecifica) {
         exportBtn.style.display = 'inline-flex';
+        exportBtn.title = `Exportar correos para: ${this.filtroClaseMaterialActual}`;
     } else {
         exportBtn.style.display = 'none';
     }
+    
+    console.log('🔘 Botón exportar:', {
+        filtro: this.filtroClaseMaterialActual,
+        mostrar: tieneClaseEspecifica
+    });
 }
 
     exportarCorreosMaterial() {
