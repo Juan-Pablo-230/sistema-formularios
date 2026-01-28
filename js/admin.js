@@ -123,46 +123,43 @@ async loadSolicitudesMaterial() {
         document.getElementById('solicitudesHoy').textContent = solicitudesHoy;
     }
 
-crearFiltroClasesMaterial(solicitudes) {
+    crearFiltroClasesMaterial(solicitudes) {
     const filtroSelect = document.getElementById('filtroClaseMaterialAdmin');
     if (!filtroSelect) return;
     
-    // Obtener clases únicas
+    // Obtener clases únicas de las solicitudes
     const clases = [...new Set(solicitudes.map(s => s.clase).filter(Boolean))].sort();
     
     // Guardar el valor seleccionado actualmente
     const valorActual = filtroSelect.value;
     
-    // Limpiar y agregar opciones MANTENIENDO la opción "Seleccione una clase"
-    filtroSelect.innerHTML = `
-        <option value="" ${this.filtroClaseMaterialActual === '' ? 'selected' : ''}>Seleccione una clase:</option>
-        <option value="todas" ${this.filtroClaseMaterialActual === 'todas' ? 'selected' : ''}>Todas las clases</option>
-    `;
+    // Crear las nuevas opciones
+    const nuevasOpciones = [
+        '<option value="" selected>Seleccione una clase:</option>',
+        '<option value="todas">Todas las clases</option>',
+        ...clases.map(clase => `<option value="${clase}">${clase}</option>`)
+    ];
     
-    clases.forEach(clase => {
-        const option = document.createElement('option');
-        option.value = clase;
-        option.textContent = clase;
-        // Mantener la selección si esta clase estaba seleccionada
-        if (clase === valorActual) {
-            option.selected = true;
-        }
-        filtroSelect.appendChild(option);
-    });
+    // Actualizar el select con las nuevas opciones
+    filtroSelect.innerHTML = nuevasOpciones.join('');
     
-    // Restaurar la selección si existe
-    if (valorActual) {
+    // Restaurar la selección anterior si existía
+    if (valorActual && (valorActual === 'todas' || clases.includes(valorActual))) {
         filtroSelect.value = valorActual;
+    } else {
+        // Por defecto, seleccionar "Seleccione una clase"
+        filtroSelect.value = '';
+        this.filtroClaseMaterialActual = '';
     }
     
-    // Configurar evento de cambio
-    filtroSelect.addEventListener('change', (e) => {
+    // Configurar evento de cambio (si no existe)
+    filtroSelect.onchange = (e) => {
         this.filtroClaseMaterialActual = e.target.value;
         this.actualizarTablaMaterial();
         this.actualizarBotonExportarMaterial();
-    });
+    };
     
-    // Aplicar el filtro actual después de reconstruir el select
+    // Forzar la actualización inicial
     this.actualizarTablaMaterial();
     this.actualizarBotonExportarMaterial();
 }
@@ -264,20 +261,23 @@ crearFiltroClasesMaterial(solicitudes) {
         }
     }
 
-actualizarBotonExportarMaterial() {
+    actualizarBotonExportarMaterial() {
     const exportBtn = document.getElementById('btnExportarCorreosAdmin');
     if (!exportBtn) return;
     
-    // Mostrar el botón solo cuando hay una clase específica seleccionada
-    const tieneClaseEspecifica = this.filtroClaseMaterialActual && 
-                                  this.filtroClaseMaterialActual !== '' && 
-                                  this.filtroClaseMaterialActual !== 'todas';
+    // Mostrar botón solo cuando hay una clase específica seleccionada
+    // No cuando está vacío ("") o es "todas"
+    const mostrarBoton = this.filtroClaseMaterialActual && 
+                         this.filtroClaseMaterialActual !== '' && 
+                         this.filtroClaseMaterialActual !== 'todas';
     
-    if (tieneClaseEspecifica) {
-        exportBtn.style.display = 'inline-flex';
-    } else {
-        exportBtn.style.display = 'none';
-    }
+    exportBtn.style.display = mostrarBoton ? 'inline-flex' : 'none';
+    
+    // Debug: para verificar
+    console.log('Botón exportar:', {
+        filtroActual: this.filtroClaseMaterialActual,
+        mostrarBoton: mostrarBoton
+    });
 }
 
     exportarCorreosMaterial() {
