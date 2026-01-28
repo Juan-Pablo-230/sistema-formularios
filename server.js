@@ -502,7 +502,8 @@ app.post('/api/material/solicitudes', async (req, res) => {
             usuarioId: new ObjectId(userHeader),
             clase,
             email,
-            fechaSolicitud: new Date()
+            fechaSolicitud: new Date(),
+            hour12: false
         };
         
         await db.collection('material').insertOne(nuevaSolicitud);
