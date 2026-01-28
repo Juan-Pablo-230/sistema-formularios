@@ -640,99 +640,268 @@ FIN DE LA LISTA
     }
 
     imprimirPlanillaAsistencia() {
-        if (!this.claseFiltradaActual) {
-            alert('No hay una clase específica seleccionada para imprimir');
-            return;
-        }
-        
-        const inscripcionesFiltradas = this.aplicarFiltrosCombinados(this.inscripcionesData);
-        
-        if (inscripcionesFiltradas.length === 0) {
-            alert('No hay inscripciones para la clase seleccionada');
-            return;
-        }
-        
-        const ventanaImpresion = window.open('', '_blank');
-        const fechaActual = new Date().toLocaleDateString('es-AR');
-        const nombreClase = this.claseFiltradaActual;
-        
-        ventanaImpresion.document.write(`
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Planilla de Asistencia - ${nombreClase}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-                    .header h1 { margin: 0; font-size: 24px; color: #2c3e50; }
-                    .header h2 { margin: 10px 0 0 0; font-size: 18px; color: #7f8c8d; }
-                    .info-section { margin-bottom: 30px; display: flex; justify-content: space-between; font-size: 14px; }
-                    .planilla-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                    .columna { border: 2px solid #333; }
-                    .columna-header { background-color: #34495e; color: white; padding: 10px; text-align: center; font-weight: bold; border-bottom: 2px solid #333; }
-                    .fila { display: grid; grid-template-columns: 1fr 80px; border-bottom: 1px solid #ddd; }
-                    .fila:last-child { border-bottom: none; }
-                    .nombre { padding: 12px 15px; border-right: 1px solid #ddd; }
-                    .asistencia { padding: 12px; text-align: center; background-color: #f8f9fa; border: 2px solid #e74c3c; }
-                    .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #7f8c8d; }
-                    @media print {
-                        body { margin: 10mm; }
-                        .no-print { display: none; }
-                        .planilla-container { break-inside: avoid; }
-                    }
-                    @page { size: A4; margin: 20mm; }
-                </style>
-            </head>
-            <body>
+    if (!this.claseFiltradaActual) {
+        alert('No hay una clase específica seleccionada para imprimir');
+        return;
+    }
+    
+    const inscripcionesFiltradas = this.aplicarFiltrosCombinados(this.inscripcionesData);
+    
+    if (inscripcionesFiltradas.length === 0) {
+        alert('No hay inscripciones para la clase seleccionada');
+        return;
+    }
+    
+    const ventanaImpresion = window.open('', '_blank');
+    const fechaActual = new Date().toLocaleDateString('es-AR');
+    const nombreClase = this.claseFiltradaActual;
+    
+    // Obtener todas las páginas
+    const paginas = this.generarFilasPlanilla(inscripcionesFiltradas);
+    
+    // Generar contenido HTML para todas las páginas
+    let contenidoHTML = '';
+    
+    paginas.forEach((pagina, index) => {
+        contenidoHTML += `
+            <div class="pagina" style="page-break-after: ${index < paginas.length - 1 ? 'always' : 'avoid'};">
                 <div class="header">
-                    <h1>PLANILLA DE ASISTENCIA</h1>
+                    <h1>PLANILLA DE ASISTENCIA - PÁGINA ${pagina.pagina}/${pagina.totalPaginas}</h1>
                     <h2>${nombreClase}</h2>
                 </div>
                 
                 <div class="info-section">
                     <div><strong>Fecha de impresión:</strong> ${fechaActual}</div>
-                    <div><strong>Total de inscriptos:</strong> ${inscripcionesFiltradas.length}</div>
+                    <div><strong>Inscriptos en esta página:</strong> ${pagina.inicioNumero}-${pagina.finNumero} de ${inscripcionesFiltradas.length}</div>
+                    <div><strong>Total general:</strong> ${inscripcionesFiltradas.length} inscriptos</div>
                 </div>
                 
                 <div class="planilla-container">
                     <div class="columna">
-                        <div class="columna-header">LISTA DE ASISTENCIA</div>
-                        ${this.generarFilasPlanilla(inscripcionesFiltradas)}
+                        <div class="columna-header">COLUMNA A</div>
+                        ${pagina.primeraColumna}
                     </div>
                     
                     <div class="columna">
-                        <div class="columna-header">LISTA DE ASISTENCIA</div>
-                        ${this.generarFilasPlanilla(inscripcionesFiltradas)}
+                        <div class="columna-header">COLUMNA B</div>
+                        ${pagina.segundaColumna}
                     </div>
                 </div>
                 
                 <div class="footer">
-                    <p>Sistema de Asistencia MongoDB - Generado el ${fechaActual}</p>
-                    <button class="no-print" onclick="window.print()">🖨️ Imprimir</button>
-                    <button class="no-print" onclick="window.close()">❌ Cerrar</button>
+                    <p>Página ${pagina.pagina} de ${pagina.totalPaginas} - Sistema de Asistencia MongoDB</p>
                 </div>
-                
-                <script>window.onload = function() { window.focus(); };</script>
-            </body>
-            </html>
-        `);
-        
-        ventanaImpresion.document.close();
-    }
-
-    generarFilasPlanilla(inscripciones) {
-        const mitad = Math.ceil(inscripciones.length / 2);
-        const primeraMitad = inscripciones.slice(0, mitad);
-        
-        return primeraMitad.map((insc, index) => `
-            <div class="fila">
-                <div class="nombre">${index + 1}. ${insc.usuario?.apellidoNombre || 'N/A'}</div>
-                <div class="asistencia"></div>
             </div>
-        `).join('');
+        `;
+    });
+    
+    ventanaImpresion.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Planilla de Asistencia - ${nombreClase}</title>
+            <style>
+                body { 
+                    font-family: Arial, sans-serif; 
+                    margin: 20px; 
+                    color: #333;
+                    font-size: 12px; /* Tamaño de fuente más pequeño para más espacio */
+                }
+                .pagina {
+                    margin-bottom: 30px;
+                }
+                .header { 
+                    text-align: center; 
+                    margin-bottom: 20px; 
+                    border-bottom: 2px solid #333; 
+                    padding-bottom: 15px; 
+                }
+                .header h1 { 
+                    margin: 0; 
+                    font-size: 18px; 
+                    color: #2c3e50; 
+                }
+                .header h2 { 
+                    margin: 5px 0 0 0; 
+                    font-size: 14px; 
+                    color: #7f8c8d; 
+                }
+                .info-section { 
+                    margin-bottom: 15px; 
+                    display: flex; 
+                    justify-content: space-between; 
+                    font-size: 11px;
+                    flex-wrap: wrap;
+                }
+                .planilla-container { 
+                    display: grid; 
+                    grid-template-columns: 1fr 1fr; 
+                    gap: 15px;
+                    min-height: 500px;
+                }
+                .columna { 
+                    border: 1px solid #333; 
+                }
+                .columna-header { 
+                    background-color: #34495e; 
+                    color: white; 
+                    padding: 8px; 
+                    text-align: center; 
+                    font-weight: bold; 
+                    border-bottom: 1px solid #333;
+                    font-size: 11px;
+                }
+                .fila { 
+                    display: grid; 
+                    grid-template-columns: 1fr 60px; /* Reducir ancho de columna asistencia */
+                    border-bottom: 1px solid #ddd; 
+                    min-height: 24px; /* Altura mínima de fila reducida */
+                }
+                .fila:last-child { border-bottom: none; }
+                .nombre { 
+                    padding: 6px 8px; /* Padding reducido */
+                    border-right: 1px solid #ddd;
+                    font-size: 11px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .asistencia { 
+                    padding: 6px; 
+                    text-align: center; 
+                    background-color: #f8f9fa; 
+                    border: 1px solid #e74c3c;
+                    font-size: 11px;
+                }
+                .footer { 
+                    margin-top: 20px; 
+                    text-align: center; 
+                    font-size: 10px; 
+                    color: #7f8c8d; 
+                }
+                @media print {
+                    body { 
+                        margin: 10mm;
+                        font-size: 10px;
+                    }
+                    .no-print { display: none; }
+                    .planilla-container { 
+                        break-inside: avoid;
+                        gap: 10mm;
+                    }
+                    .columna {
+                        break-inside: avoid;
+                    }
+                    .fila {
+                        min-height: 20px;
+                    }
+                    .nombre, .asistencia {
+                        padding: 4px 6px;
+                    }
+                }
+                @page { 
+                    size: A4; 
+                    margin: 15mm;
+                }
+            </style>
+        </head>
+        <body>
+            ${contenidoHTML}
+            
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: #2c3e50; color: white; border: none; border-radius: 5px; cursor: pointer;">🖨️ Imprimir todas las páginas</button>
+                <button onclick="window.close()" style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">❌ Cerrar</button>
+            </div>
+            
+            <script>
+                window.onload = function() { 
+                    window.focus();
+                    // Auto-ajustar altura de filas vacías
+                    const filasVacias = document.querySelectorAll('.nombre:empty');
+                    filasVacias.forEach(fila => {
+                        fila.parentElement.style.minHeight = '24px';
+                    });
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    
+    ventanaImpresion.document.close();
+}
+
+generarFilasPlanilla(inscripciones) {
+    const MAX_FILAS_POR_PAGINA = 25; // Máximo de filas por página (ajustable)
+    const COLUMNAS_POR_PAGINA = 2;   // Dos columnas por página
+    
+    // Calcular cuántas filas caben por columna
+    const maxFilasPorColumna = Math.ceil(MAX_FILAS_POR_PAGINA / COLUMNAS_POR_PAGINA);
+    
+    // Calcular cuántas páginas necesitamos
+    const totalPaginas = Math.ceil(inscripciones.length / MAX_FILAS_POR_PAGINA);
+    
+    const paginas = [];
+    
+    for (let pagina = 0; pagina < totalPaginas; pagina++) {
+        // Calcular el rango de inscripciones para esta página
+        const inicio = pagina * MAX_FILAS_POR_PAGINA;
+        const fin = Math.min(inicio + MAX_FILAS_POR_PAGINA, inscripciones.length);
+        const inscripcionesPagina = inscripciones.slice(inicio, fin);
+        
+        // Dividir las inscripciones de esta página en dos columnas
+        const mitad = Math.ceil(inscripcionesPagina.length / COLUMNAS_POR_PAGINA);
+        const primeraMitad = inscripcionesPagina.slice(0, mitad);
+        const segundaMitad = inscripcionesPagina.slice(mitad);
+        
+        // Generar columnas
+        let primeraColumna = primeraMitad.map((insc, index) => {
+            const numeroGlobal = inicio + index + 1;
+            return `
+                <div class="fila">
+                    <div class="nombre">${numeroGlobal}. ${insc.usuario?.apellidoNombre || 'N/A'}</div>
+                    <div class="asistencia"></div>
+                </div>
+            `;
+        }).join('');
+        
+        let segundaColumna = segundaMitad.map((insc, index) => {
+            const numeroGlobal = inicio + mitad + index + 1;
+            return `
+                <div class="fila">
+                    <div class="nombre">${numeroGlobal}. ${insc.usuario?.apellidoNombre || 'N/A'}</div>
+                    <div class="asistencia"></div>
+                </div>
+            `;
+        }).join('');
+        
+        // Si la segunda columna tiene menos filas, agregar filas vacías para igualar
+        const diferencia = primeraMitad.length - segundaMitad.length;
+        if (diferencia > 0) {
+            for (let i = 0; i < diferencia; i++) {
+                segundaColumna += `
+                    <div class="fila">
+                        <div class="nombre"></div>
+                        <div class="asistencia"></div>
+                    </div>
+                `;
+            }
+        }
+        
+        paginas.push({
+            pagina: pagina + 1,
+            totalPaginas: totalPaginas,
+            primeraColumna: primeraColumna,
+            segundaColumna: segundaColumna,
+            inicioNumero: inicio + 1,
+            finNumero: fin,
+            totalInscripcionesPagina: inscripcionesPagina.length
+        });
     }
+    
+    return paginas;
+}
 
     actualizarVistaConFiltros() {
         if (this.vistaActual === 'inscripciones') {

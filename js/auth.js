@@ -293,6 +293,7 @@ class AuthSystem {
                                 font-size: 16px;
                                 font-weight: bold;
                                 cursor: pointer;
+                                justify-content: center;
                                 margin-top: 10px;
                             ">Ingresar</button>
                         </form>
@@ -435,6 +436,7 @@ class AuthSystem {
                                 font-weight: bold;
                                 cursor: pointer;
                                 margin-top: 10px;
+                                justify-content: center;
                             ">Registrarse</button>
                         </form>
                         <div class="switch-form" style="text-align: center; margin-top: 15px; font-size: 0.9em; color: #b0b0b0;">
