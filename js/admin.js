@@ -1436,38 +1436,62 @@ generarFilasPlanilla(inscripciones) {
     }
 
     exportToCSV(inscripciones) {
-        const inscripcionesAExportar = this.aplicarFiltrosCombinados(inscripciones);
-        
-        if (inscripcionesAExportar.length === 0) {
-            alert('No hay datos para exportar con los filtros actuales');
-            return;
-        }
-
-        const headers = ['Apellido y Nombre', 'Legajo', 'Clase', 'Turno', 'Email', 'Fecha'];
-        const csvData = [
-            headers.join(','),
-            ...inscripcionesAExportar.map(insc => [
-                `"${insc.usuario?.apellidoNombre || ''}"`,
-                `"${insc.usuario?.legajo || ''}"`,
-                `"${insc.clase || ''}"`,
-                `"${insc.turno || ''}"`,
-                `"${insc.usuario?.email || ''}"`,
-                `"${insc.fecha ? new Date(insc.fecha).toLocaleString('es-AR') : ''}"`
-            ].join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        
-        link.setAttribute('href', url);
-        link.setAttribute('download', `inscripciones_mongodb_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const inscripcionesAExportar = this.aplicarFiltrosCombinados(inscripciones);
+    
+    if (inscripcionesAExportar.length === 0) {
+        alert('No hay datos para exportar con los filtros actuales');
+        return;
     }
+
+    // Obtener nombre de la clase para el archivo
+    let nombreClaseArchivo = 'todas_las_clases';
+    let nombreClaseMostrar = 'Todas las clases';
+    
+    // Si hay una clase filtrada, usarla para el nombre
+    if (this.filtroClaseActual && this.filtroClaseActual !== 'todas') {
+        nombreClaseMostrar = this.filtroClaseActual;
+        
+        // Limpiar el nombre para que sea válido como nombre de archivo
+        nombreClaseArchivo = this.filtroClaseActual
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+            .replace(/[^a-z0-9\s]/gi, '') // Quitar caracteres especiales
+            .replace(/\s+/g, '_') // Reemplazar espacios con guiones bajos
+            .substring(0, 50); // Limitar longitud
+    }
+
+    const headers = ['Apellido y Nombre', 'Legajo', 'Clase', 'Turno', 'Email', 'Fecha'];
+    const csvData = [
+        headers.join(','),
+        ...inscripcionesAExportar.map(insc => [
+            `"${insc.usuario?.apellidoNombre || ''}"`,
+            `"${insc.usuario?.legajo || ''}"`,
+            `"${insc.clase || ''}"`,
+            `"${insc.turno || ''}"`,
+            `"${insc.usuario?.email || ''}"`,
+            `"${insc.fecha ? new Date(insc.fecha).toLocaleString('es-AR') : ''}"`
+        ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    // Crear nombre de archivo CON EL NOMBRE DE LA CLASE
+    const fecha = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    const nombreArchivo = `inscripciones_${nombreClaseArchivo}_${fecha}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', nombreArchivo);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Mostrar mensaje informativo
+    alert(`✅ CSV exportado exitosamente:\n📄 ${nombreArchivo}\n📊 ${inscripcionesAExportar.length} registros\n🏫 ${nombreClaseMostrar}`);
+}
     
     async init() {
         console.log('🚀 Inicializando admin system MongoDB...');
