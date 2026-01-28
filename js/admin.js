@@ -1414,25 +1414,43 @@ generarFilasPlanilla(inscripciones) {
     }
 
     async actualizarUsuarioDesdeModal(usuarioId) {
-        const form = document.getElementById('editUserForm');
-        const formData = new FormData(form);
-        
-        const userData = {
-            apellidoNombre: formData.get('apellidoNombre'),
-            legajo: formData.get('legajo'),
-            email: formData.get('email'),
-            turno: formData.get('turno')
-        };
+    const form = document.getElementById('editUserForm');
+    const formData = new FormData(form);
+    
+    const userData = {
+        apellidoNombre: formData.get('apellidoNombre'),
+        legajo: formData.get('legajo'),
+        email: formData.get('email'),
+        turno: formData.get('turno')
+    };
 
-        try {
-            alert('⚠️ Funcionalidad de edición en desarrollo. Se necesita implementar endpoint PUT /admin/usuarios/:id');
+    // Validaciones básicas
+    if (!userData.apellidoNombre || !userData.legajo || !userData.email || !userData.turno) {
+        alert('❌ Todos los campos son obligatorios');
+        return;
+    }
+
+    try {
+        // Enviar la solicitud al endpoint PUT
+        const result = await authSystem.makeRequest(
+            `/admin/usuarios/${usuarioId}`,
+            userData,
+            'PUT'
+        );
+
+        if (result.success) {
+            alert('✅ Usuario actualizado correctamente');
             document.getElementById('editUserModal').remove();
             
-        } catch (error) {
-            console.error('❌ Error actualizando usuario:', error);
-            alert('❌ Error al actualizar usuario: ' + error.message);
+            // Recargar la lista de usuarios
+            const usuarios = await this.loadUsuarios();
+            this.showUsuariosTable(usuarios);
         }
+    } catch (error) {
+        console.error('❌ Error actualizando usuario:', error);
+        alert('❌ Error al actualizar usuario: ' + error.message);
     }
+}
 
     cambiarVista(vista) {
         this.vistaActual = vista;
