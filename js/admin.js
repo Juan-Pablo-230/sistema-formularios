@@ -6,7 +6,7 @@ class AdminSystem {
         this.usuariosData = [];
         this.solicitudesMaterialData = [];
         this.filtroClaseActual = 'todas';
-        this.filtroClaseMaterialActual = 'todas';
+        this.filtroClaseMaterialActual = '';
         this.vistaActual = 'inscripciones';
         this.usuarioEditando = null;
         this.claseFiltradaActual = null;
@@ -123,29 +123,49 @@ async loadSolicitudesMaterial() {
         document.getElementById('solicitudesHoy').textContent = solicitudesHoy;
     }
 
-    crearFiltroClasesMaterial(solicitudes) {
-        const filtroSelect = document.getElementById('filtroClaseMaterialAdmin');
-        if (!filtroSelect) return;
-        
-        // Obtener clases únicas
-        const clases = [...new Set(solicitudes.map(s => s.clase).filter(Boolean))].sort();
-        
-        // Limpiar y agregar opciones
-        filtroSelect.innerHTML = '<option value="todas">Todas las clases</option>';
-        clases.forEach(clase => {
-            const option = document.createElement('option');
-            option.value = clase;
-            option.textContent = clase;
-            filtroSelect.appendChild(option);
-        });
-        
-        // Configurar evento de cambio
-        filtroSelect.addEventListener('change', (e) => {
-            this.filtroClaseMaterialActual = e.target.value;
-            this.actualizarTablaMaterial();
-            this.actualizarBotonExportarMaterial();
-        });
+crearFiltroClasesMaterial(solicitudes) {
+    const filtroSelect = document.getElementById('filtroClaseMaterialAdmin');
+    if (!filtroSelect) return;
+    
+    // Obtener clases únicas
+    const clases = [...new Set(solicitudes.map(s => s.clase).filter(Boolean))].sort();
+    
+    // Guardar el valor seleccionado actualmente
+    const valorActual = filtroSelect.value;
+    
+    // Limpiar y agregar opciones MANTENIENDO la opción "Seleccione una clase"
+    filtroSelect.innerHTML = `
+        <option value="" ${this.filtroClaseMaterialActual === '' ? 'selected' : ''}>Seleccione una clase:</option>
+        <option value="todas" ${this.filtroClaseMaterialActual === 'todas' ? 'selected' : ''}>Todas las clases</option>
+    `;
+    
+    clases.forEach(clase => {
+        const option = document.createElement('option');
+        option.value = clase;
+        option.textContent = clase;
+        // Mantener la selección si esta clase estaba seleccionada
+        if (clase === valorActual) {
+            option.selected = true;
+        }
+        filtroSelect.appendChild(option);
+    });
+    
+    // Restaurar la selección si existe
+    if (valorActual) {
+        filtroSelect.value = valorActual;
     }
+    
+    // Configurar evento de cambio
+    filtroSelect.addEventListener('change', (e) => {
+        this.filtroClaseMaterialActual = e.target.value;
+        this.actualizarTablaMaterial();
+        this.actualizarBotonExportarMaterial();
+    });
+    
+    // Aplicar el filtro actual después de reconstruir el select
+    this.actualizarTablaMaterial();
+    this.actualizarBotonExportarMaterial();
+}
 
     actualizarTablaMaterial() {
         const tbody = document.getElementById('materialBodyAdmin');
@@ -244,19 +264,21 @@ async loadSolicitudesMaterial() {
         }
     }
 
-    actualizarBotonExportarMaterial() {
-        const exportBtn = document.getElementById('btnExportarCorreosAdmin');
-        if (!exportBtn) return;
-        
-        const tieneClaseFiltrada = this.filtroClaseMaterialActual && 
-                                   this.filtroClaseMaterialActual !== 'todas';
-        
-        if (tieneClaseFiltrada) {
-            exportBtn.style.display = 'inline-flex';
-        } else {
-            exportBtn.style.display = 'none';
-        }
+actualizarBotonExportarMaterial() {
+    const exportBtn = document.getElementById('btnExportarCorreosAdmin');
+    if (!exportBtn) return;
+    
+    // Mostrar el botón solo cuando hay una clase específica seleccionada
+    const tieneClaseEspecifica = this.filtroClaseMaterialActual && 
+                                  this.filtroClaseMaterialActual !== '' && 
+                                  this.filtroClaseMaterialActual !== 'todas';
+    
+    if (tieneClaseEspecifica) {
+        exportBtn.style.display = 'inline-flex';
+    } else {
+        exportBtn.style.display = 'none';
     }
+}
 
     exportarCorreosMaterial() {
         if (!this.filtroClaseMaterialActual || this.filtroClaseMaterialActual === 'todas') {
@@ -1488,9 +1510,9 @@ generarFilasPlanilla(inscripciones) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    // Mostrar mensaje informativo
-    alert(`✅ CSV exportado exitosamente:\n📄 ${nombreArchivo}\n📊 ${inscripcionesAExportar.length} registros\n🏫 ${nombreClaseMostrar}`);
+
+    console.log(`✅ CSV exportado exitosamente:\n📄 ${nombreArchivo}\n📊 ${inscripcionesAExportar.length} registros\n🏫 ${nombreClaseMostrar}`);
+
 }
     
     async init() {
