@@ -433,9 +433,9 @@ app.get('/api/inscripciones/estadisticas', async (req, res) => {
         const ultimas = inscripciones.slice(0, 10).map(insc => {
             let fechaFormateada = 'Fecha no disponible';
             if (insc.fecha instanceof Date) {
-                fechaFormateada = insc.fecha.toLocaleString('es-AR');
+                fechaFormateada = insc.fecha.toLocaleString({hour12: false}, 'es-AR');
             } else if (typeof insc.fecha === 'string') {
-                fechaFormateada = new Date(insc.fecha).toLocaleString('es-AR');
+                fechaFormateada = new Date(insc.fecha).toLocaleString({hour12: false}, 'es-AR');
             }
             
             return {

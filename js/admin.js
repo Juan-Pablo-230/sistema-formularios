@@ -225,7 +225,7 @@ actualizarTablaMaterial() {
         const row = document.createElement('tr');
         
         const fecha = solicitud.fechaSolicitud ? 
-            new Date(solicitud.fechaSolicitud).toLocaleString('es-AR') : 
+            new Date(solicitud.fechaSolicitud).toLocaleString({hour12: false}, 'es-AR') : 
             'Fecha no disponible';
         
         const emailLink = solicitud.email ? 
@@ -347,7 +347,7 @@ actualizarTablaMaterial() {
         
         // Crear contenido del archivo .txt
         const clase = this.filtroClaseMaterialActual;
-        const fecha = new Date().toLocaleDateString('es-AR');
+        const fecha = new Date().toLocaleDateString({hour12: false}, 'es-AR');
         
         const contenidoTxt = `
 =============================================
@@ -715,7 +715,7 @@ FIN DE LA LISTA
     }
     
     const ventanaImpresion = window.open('', '_blank');
-    const fechaActual = new Date().toLocaleDateString('es-AR');
+    const fechaActual = new Date().toLocaleDateString({hour12: false}, 'es-AR');
     const nombreClase = this.claseFiltradaActual;
     
     // Obtener todas las páginas
@@ -1035,7 +1035,7 @@ generarFilasPlanilla(inscripciones) {
         inscripciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
         inscripciones.forEach((insc, index) => {
-            const fecha = insc.fecha ? new Date(insc.fecha).toLocaleString('es-AR') : 'Fecha no disponible';
+            const fecha = insc.fecha ? new Date(insc.fecha).toLocaleString({hour12: false}, 'es-AR') : 'Fecha no disponible';
             const row = document.createElement('tr');
             
             const emailLink = insc.usuario?.email ? 
@@ -1086,7 +1086,7 @@ generarFilasPlanilla(inscripciones) {
             const row = document.createElement('tr');
             
             const fechaRegistro = usuario.fechaRegistro ? 
-                new Date(usuario.fechaRegistro).toLocaleString('es-AR') : 
+                new Date(usuario.fechaRegistro).toLocaleString({hour12: false}, 'es-AR') : 
                 'No registrada';
                 
                 const esAdmin = authSystem.isAdmin();
@@ -1531,7 +1531,7 @@ generarFilasPlanilla(inscripciones) {
             `"${insc.clase || ''}"`,
             `"${insc.turno || ''}"`,
             `"${insc.usuario?.email || ''}"`,
-            `"${insc.fecha ? new Date(insc.fecha).toLocaleString('es-AR') : ''}"`
+            `"${insc.fecha ? new Date(insc.fecha).toLocaleString({hour12: false}, 'es-AR') : ''}"`
         ].join(','))
     ].join('\n');
 

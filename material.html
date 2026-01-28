@@ -146,7 +146,7 @@
                 }
                 
                 const disponible = ahora >= desde && ahora <= hasta;
-                console.log(`📅 [Disponibilidad] "${value}": ${disponible ? 'DISPONIBLE' : 'NO disponible'} (${ahora.toLocaleString('es-AR')})`);
+                console.log(`📅 [Disponibilidad] "${value}": ${disponible ? 'DISPONIBLE' : 'NO disponible'} (${ahora.toLocaleString({hour12: false}, 'es-AR')})`);
                 
                 return disponible;
             } catch (error) {
@@ -158,7 +158,7 @@
         actualizarOpciones() {
             console.log('🔄 [Disponibilidad] Actualizando opciones...');
             const ahora = new Date();
-            console.log(`🕐 [Disponibilidad] Hora actual: ${ahora.toLocaleString('es-AR')}`);
+            console.log(`🕐 [Disponibilidad] Hora actual: ${ahora.toLocaleString({hour12: false}, 'es-AR')}`);
             
             const valorSeleccionado = this.selectElement.value;
             let opcionSeleccionadaDisponible = false;
@@ -372,7 +372,7 @@
             this.solicitudes.forEach(solicitud => {
                 const row = document.createElement('tr');
                 const fecha = solicitud.fechaSolicitud ? 
-                    new Date(solicitud.fechaSolicitud).toLocaleDateString('es-AR') : 
+                    new Date(solicitud.fechaSolicitud).toLocaleDateString({hour12: false}, 'es-AR') : 
                     'Fecha no disponible';
                 
                 row.innerHTML = `
