@@ -6,7 +6,7 @@ class AdminSystem {
         this.usuariosData = [];
         this.solicitudesMaterialData = [];
         this.filtroClaseActual = '';
-        this.filtroClaseMaterialActual = 'todas';
+        this.filtroClaseMaterialActual = '';
         this.vistaActual = 'inscripciones';
         this.usuarioEditando = null;
         this.claseFiltradaActual = null;
@@ -124,28 +124,48 @@ async loadSolicitudesMaterial() {
     }
 
     crearFiltroClasesMaterial(solicitudes) {
-        const filtroSelect = document.getElementById('filtroClaseMaterialAdmin');
-        if (!filtroSelect) return;
-        
-        // Obtener clases únicas
-        const clases = [...new Set(solicitudes.map(s => s.clase).filter(Boolean))].sort();
-        
-        // Limpiar y agregar opciones
-        filtroSelect.innerHTML = '<option value="">Seleccione una clase:</option>';
-        clases.forEach(clase => {
-            const option = document.createElement('option');
-            option.value = clase;
-            option.textContent = clase;
-            filtroSelect.appendChild(option);
-        });
-        
-        // Configurar evento de cambio
-        filtroSelect.addEventListener('change', (e) => {
-            this.filtroClaseMaterialActual = e.target.value;
-            this.actualizarTablaMaterial();
-            this.actualizarBotonExportarMaterial();
-        });
+    const filtroSelect = document.getElementById('filtroClaseMaterialAdmin');
+    if (!filtroSelect) return;
+    
+    // Obtener clases únicas
+    const clases = [...new Set(solicitudes.map(s => s.clase).filter(Boolean))].sort();
+    
+    // Guardar el valor seleccionado actualmente
+    const valorActual = filtroSelect.value;
+    
+    // Limpiar y agregar opciones MANTENIENDO la opción "Seleccione una clase"
+    filtroSelect.innerHTML = `
+        <option value="" ${this.filtroClaseMaterialActual === '' ? 'selected' : ''}>Seleccione una clase:</option>
+        <option value="todas" ${this.filtroClaseMaterialActual === 'todas' ? 'selected' : ''}>Todas las clases</option>
+    `;
+    
+    clases.forEach(clase => {
+        const option = document.createElement('option');
+        option.value = clase;
+        option.textContent = clase;
+        // Mantener la selección si esta clase estaba seleccionada
+        if (clase === valorActual) {
+            option.selected = true;
+        }
+        filtroSelect.appendChild(option);
+    });
+    
+    // Restaurar la selección si existe
+    if (valorActual) {
+        filtroSelect.value = valorActual;
     }
+    
+    // Configurar evento de cambio
+    filtroSelect.addEventListener('change', (e) => {
+        this.filtroClaseMaterialActual = e.target.value;
+        this.actualizarTablaMaterial();
+        this.actualizarBotonExportarMaterial();
+    });
+    
+    // Aplicar el filtro actual después de reconstruir el select
+    this.actualizarTablaMaterial();
+    this.actualizarBotonExportarMaterial();
+}
 
     actualizarTablaMaterial() {
         const tbody = document.getElementById('materialBodyAdmin');
@@ -245,18 +265,20 @@ async loadSolicitudesMaterial() {
     }
 
     actualizarBotonExportarMaterial() {
-        const exportBtn = document.getElementById('btnExportarCorreosAdmin');
-        if (!exportBtn) return;
-        
-        const tieneClaseFiltrada = this.filtroClaseMaterialActual && 
-                                   this.filtroClaseMaterialActual !== 'todas';
-        
-        if (tieneClaseFiltrada) {
-            exportBtn.style.display = 'inline-flex';
-        } else {
-            exportBtn.style.display = 'none';
-        }
+    const exportBtn = document.getElementById('btnExportarCorreosAdmin');
+    if (!exportBtn) return;
+    
+    // Mostrar el botón solo cuando hay una clase específica seleccionada
+    const tieneClaseEspecifica = this.filtroClaseMaterialActual && 
+                                  this.filtroClaseMaterialActual !== '' && 
+                                  this.filtroClaseMaterialActual !== 'todas';
+    
+    if (tieneClaseEspecifica) {
+        exportBtn.style.display = 'inline-flex';
+    } else {
+        exportBtn.style.display = 'none';
     }
+}
 
     exportarCorreosMaterial() {
         if (!this.filtroClaseMaterialActual || this.filtroClaseMaterialActual === 'todas') {
@@ -582,29 +604,31 @@ FIN DE LA LISTA
     }
 
     crearInterfazFiltros(inscripciones) {
-        const clases = this.obtenerClasesUnicas(inscripciones);
+    const clases = this.obtenerClasesUnicas(inscripciones);
+    
+    const filtroContainer = document.getElementById('filtroContainer');
+    if (!filtroContainer) return;
+    
+    filtroContainer.innerHTML = '';
+    
+    if (clases.length > 0) {
+        const selectClase = document.createElement('select');
+        selectClase.id = 'filtroClase';
+        selectClase.className = 'filtro-select';
+        selectClase.innerHTML = `
+            <option value="">Seleccione una clase:</option>
+            <option value="todas" ${this.filtroClaseActual === 'todas' ? 'selected' : ''}>Todas las clases</option>
+            ${clases.map(clase => `<option value="${clase}" ${this.filtroClaseActual === clase ? 'selected' : ''}>${clase}</option>`).join('')}
+        `;
         
-        const filtroContainer = document.getElementById('filtroContainer');
-        if (!filtroContainer) return;
+        selectClase.addEventListener('change', (e) => {
+            this.filtroClaseActual = e.target.value;
+            this.actualizarVistaConFiltros();
+            this.actualizarBotonImprimir();
+        });
         
-        filtroContainer.innerHTML = '';
-        
-        if (clases.length > 0) {
-            const selectClase = document.createElement('select');
-            selectClase.id = 'filtroClase';
-            selectClase.className = 'filtro-select';
-            selectClase.innerHTML = `
-                <option value="todas">Todas las clases</option>
-                ${clases.map(clase => `<option value="${clase}">${clase}</option>`).join('')}
-            `;
-            selectClase.value = this.filtroClaseActual;
-            selectClase.addEventListener('change', (e) => {
-                this.filtroClaseActual = e.target.value;
-                this.actualizarVistaConFiltros();
-                this.actualizarBotonImprimir();
-            });
-            filtroContainer.appendChild(selectClase);
-        }
+        filtroContainer.appendChild(selectClase);
+    }
         
         const imprimirContainer = document.createElement('div');
         imprimirContainer.id = 'imprimirContainer';
