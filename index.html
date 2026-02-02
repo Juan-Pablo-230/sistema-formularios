@@ -50,64 +50,202 @@
             </div>
         </div>
 
-        <div class="classes-grid">
+        <div class="main-layout">
+            <!-- Columna izquierda: Clases principales -->
+            <div class="left-column">
+                <div class="classes-grid">
 
-            <div class="class-card" onclick="window.location.href='/Protocolos/index.html'">
-                <h3>Elaboración de Protocolos</h3>
-                <p>Dr. Pedro Mundel.</p>
-                <span class="class-date">Clase dia 05/02/2026</span>
-            </div>
+                    <div class="class-card" onclick="window.location.href='/Protocolos/index.html'">
+                        <h3>Elaboración de Protocolos</h3>
+                        <p>Dr. Pedro Mundel.</p>
+                        <span class="class-date">Clase dia 05/02/2026</span>
+                    </div>
 
-            <div class="class-card" onclick="window.location.href='/Rotacion/index.html'">
-                <h3>Rotación de Personal</h3>
-                <p>Lic. Karina Raihy <br>
-                Lic. Lilian Toledo.</p>
-                <span class="class-date">Clase dia 11/02/2026</span>
-            </div>
+                    <div class="class-card" onclick="window.location.href='/Rotacion/index.html'">
+                        <h3>Rotación de Personal</h3>
+                        <p>Lic. Karina Raihy <br>
+                        Lic. Lilian Toledo.</p>
+                        <span class="class-date">Clase dia 11/02/2026</span>
+                    </div>
 
-            <div class="class-card" onclick="window.location.href='/Ausentismo/index.html'">
-                <h3>Ausentismo</h3>
-                <p>Lic. Mercedes Sosa.</p>
-                <span class="class-date">Clase dia 19/02/2026</span>
-            </div>
+                    <div class="class-card" onclick="window.location.href='/Ausentismo/index.html'">
+                        <h3>Ausentismo</h3>
+                        <p>Lic. Mercedes Sosa.</p>
+                        <span class="class-date">Clase dia 19/02/2026</span>
+                    </div>
 
-            <div class="class-card" onclick="window.location.href='/Stroke/index.html'">
-                <h3>Stroke / IAM</h3>
-                <p>Lic. Daniel de la Rosa <br>
-                Lic. Liliana Areco.</p>
-                <span class="class-date">Clase dia 24/02/2026</span>
-            </div>
+                    <div class="class-card" onclick="window.location.href='/Stroke/index.html'">
+                        <h3>Stroke / IAM</h3>
+                        <p>Lic. Daniel de la Rosa <br>
+                        Lic. Liliana Areco.</p>
+                        <span class="class-date">Clase dia 24/02/2026</span>
+                    </div>
 
-            <div class="class-card" onclick="window.location.href='/Stroke/index.html'">
-                <h3>CoPaP</h3>
-                <p>Lic. Karina Raihy <br>
-                Enf. Sara Aiduc.</p>
-                <span class="class-date">Clase dia 25/02/2026</span>
-            </div>
+                    <div class="class-card" onclick="window.location.href='/Stroke/index.html'">
+                        <h3>CoPaP</h3>
+                        <p>Lic. Karina Raihy <br>
+                        Enf. Sara Aiduc.</p>
+                        <span class="class-date">Clase dia 25/02/2026</span>
+                    </div>
 
-            <div class="class-card" onclick="window.location.href='/material.html'">
-                <h3>Solicitud Material de clases.</h3>
-                <p>Por este medio solo podras solicitar material de clase, no es valido como formulario de asistencia</p>
-                <span class="class-date">No hay clases disponibles para solicitar</span>
-            </div>
-        </div>
-
-        <!-- Sección de Video -->
-        <div class="video-section">
-            <div class="video-container">
-                <div class="video-header">
-                    <h2>Video instructivo del sistema.</h2>
-                    <p>Mira este tutorial para aprender a usar correctamente el sistema de inscripciones</p>
+                    <div class="class-card" onclick="window.location.href='/material.html'">
+                        <h3>Solicitud Material de clases.</h3>
+                        <p>Por este medio solo podras solicitar material de clase, no es valido como formulario de asistencia</p>
+                        <span class="class-date">No hay clases disponibles para solicitar</span>
+                    </div>
                 </div>
-                <div class="video-wrapper">
-                    <iframe width="560" height="315" 
-                            src="https://www.youtube.com/embed/1He-QhC2WOo?si=4ptWjDUuRr7Eg9gf" 
-                            title="YouTube video player" 
-                            frameborder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                            referrerpolicy="strict-origin-when-cross-origin" 
-                            allowfullscreen>
-                    </iframe>
+
+                <!-- Sección de Video -->
+                <div class="video-section">
+                    <div class="video-container">
+                        <div class="video-header">
+                            <h2>Video instructivo del sistema.</h2>
+                            <p>Mira este tutorial para aprender a usar correctamente el sistema de inscripciones</p>
+                        </div>
+                        <div class="video-wrapper">
+                            <iframe width="560" height="315" 
+                                    src="https://www.youtube.com/embed/1He-QhC2WOo?si=4ptWjDUuRr7Eg9gf" 
+                                    title="YouTube video player" 
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                    referrerpolicy="strict-origin-when-cross-origin" 
+                                    allowfullscreen>
+                            </iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna derecha: Calendario ICS -->
+            <div class="right-column">
+                <div class="calendar-sidebar">
+                    <div class="calendar-header">
+                        <h3>📅 Calendario ICS</h3>
+                        <p>Agrega clases a tu calendario personal</p>
+                    </div>
+                    
+                    <!-- Configuración de recordatorios -->
+                    <div class="calendar-settings">
+                        <h4>⏰ Recordatorios:</h4>
+                        <div class="reminder-grid">
+                            <label><input type="checkbox" class="reminder-checkbox" value="10" checked> 10 min</label>
+                            <label><input type="checkbox" class="reminder-checkbox" value="30" checked> 30 min</label>
+                            <label><input type="checkbox" class="reminder-checkbox" value="60" checked> 1 hora</label>
+                            <label><input type="checkbox" class="reminder-checkbox" value="180"> 3 horas</label>
+                            <label><input type="checkbox" class="reminder-checkbox" value="1440"> 1 día</label>
+                            <label><input type="checkbox" class="reminder-checkbox" value="10080"> 1 semana</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Lista de clases para agregar al calendario -->
+                    <div class="calendar-classes-list">
+                        <h4>Clases Disponibles:</h4>
+                        
+                        <!-- Clase 1 -->
+                        <div class="calendar-class-card" data-class-id="1">
+                            <div class="class-info">
+                                <div class="class-title">Elaboración de Protocolos</div>
+                                <div class="class-details">
+                                    <span class="detail-item">📅 05/02/2026</span>
+                                    <span class="detail-item">🕒 09:00hs</span>
+                                    <span class="detail-item modality hibrida">Híbrida</span>
+                                </div>
+                                <div class="class-instructor">Dr. Pedro Mundel</div>
+                            </div>
+                            <button class="add-to-calendar-btn" onclick="calendarManager.addToCalendar(1)">
+                                + Agregar a .ics
+                            </button>
+                        </div>
+                        
+                        <!-- Clase 2 -->
+                        <div class="calendar-class-card" data-class-id="2">
+                            <div class="class-info">
+                                <div class="class-title">Rotación de Personal</div>
+                                <div class="class-details">
+                                    <span class="detail-item">📅 11/02/2026</span>
+                                    <span class="detail-item">🕒 14:00hs</span>
+                                    <span class="detail-item modality virtual">Virtual</span>
+                                </div>
+                                <div class="class-instructor">Lic. Karina Raihy, Lic. Lilian Toledo</div>
+                            </div>
+                            <button class="add-to-calendar-btn" onclick="calendarManager.addToCalendar(2)">
+                                + Agregar a .ics
+                            </button>
+                        </div>
+                        
+                        <!-- Clase 3 -->
+                        <div class="calendar-class-card" data-class-id="3">
+                            <div class="class-info">
+                                <div class="class-title">Ausentismo</div>
+                                <div class="class-details">
+                                    <span class="detail-item">📅 19/02/2026</span>
+                                    <span class="detail-item">🕒 10:00hs</span>
+                                    <span class="detail-item modality presencial">Presencial</span>
+                                    <!-- <span class="detail-item modality hibrida">Híbrida</span> -->
+                                </div>
+                                <div class="class-instructor">Lic. Mercedes Sosa</div>
+                            </div>
+                            <button class="add-to-calendar-btn" onclick="calendarManager.addToCalendar(3)">
+                                + Agregar a .ics
+                            </button>
+                        </div>
+                        
+                        <!-- Clase 4 -->
+                        <div class="calendar-class-card" data-class-id="4">
+                            <div class="class-info">
+                                <div class="class-title">Stroke / IAM</div>
+                                <div class="class-details">
+                                    <span class="detail-item">📅 24/02/2026</span>
+                                    <span class="detail-item">🕒 09:00hs</span>
+                                    <span class="detail-item modality virtual">Virtual</span>
+                                </div>
+                                <div class="class-instructor">Lic. Daniel de la Rosa, Lic. Liliana Areco</div>
+                            </div>
+                            <button class="add-to-calendar-btn" onclick="calendarManager.addToCalendar(4)">
+                                + Agregar a .ics
+                            </button>
+                        </div>
+                        
+                        <!-- Clase 5 -->
+                        <div class="calendar-class-card" data-class-id="5">
+                            <div class="class-info">
+                                <div class="class-title">CoPaP</div>
+                                <div class="class-details">
+                                    <span class="detail-item">📅 25/02/2026</span>
+                                    <span class="detail-item">🕒 15:00hs</span>
+                                    <span class="detail-item modality virtual">Virtual</span>
+                                </div>
+                                <div class="class-instructor">Lic. Karina Raihy, Enf. Sara Aiduc</div>
+                            </div>
+                            <button class="add-to-calendar-btn" onclick="calendarManager.addToCalendar(5)">
+                                + Agregar a .ics
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Acciones del calendario -->
+                    <div class="calendar-actions">
+                        <div class="selected-count">
+                            <span id="selectedClassesCount">0</span> clases seleccionadas
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button id="downloadSelectedBtn" class="download-selected-btn" onclick="calendarManager.downloadSelected()">
+                                📥 Descargar Seleccionadas (.ics)
+                            </button>
+                            <button id="downloadAllBtn" class="download-all-btn" onclick="calendarManager.downloadAll()">
+                                📥 Descargar Todas (.ics)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Vista previa de selección -->
+                    <div class="selection-preview" id="selectionPreview">
+                        <h4>📋 Vista Previa:</h4>
+                        <div class="preview-list" id="previewList">
+                            <div class="empty-preview">No hay clases seleccionadas</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -115,6 +253,7 @@
     </div> <!-- Cierre del container -->
 
     <div id="updateProfileModal" class="modal-overlay" style="display: none;">
+        <!-- Mantener el contenido existente del modal -->
         <div class="modal-container">
             <div class="modal-header">
                 <h2>✏️ Mi perfil</h2>
@@ -253,5 +392,6 @@
     <script src="/js/auth.js"></script>
     <script src="/js/search.js"></script>
     <script src="/js/profile-updater.js"></script>
+    <script src="/js/calendar.js"></script>
 </body>
 </html>
