@@ -12,16 +12,16 @@ class CalendarManager {
         return [
             {
                 id: 1,
-                title: "Elaboración de Protocolos",
-                date: "2026-02-05",
-                displayDate: "05/02/2026",
+                title: "Telemetría",
+                date: "2026-02-10",
+                displayDate: "10/02/2026",
                 time: "09:00",
                 displayTime: "09:00hs",
-                endTime: "12:00",
-                modality: "Presencial",
-                instructor: "Dr. Pedro Mundel",
-                location: "Aula Principal",
-                description: "Clase sobre elaboración de protocolos de investigación"
+                endTime: "11:00",
+                modality: "Virtual",
+                instructor: "Lic. Rosa Monzon, Lic. Daniel De La Rosa",
+                location: "Microsoft Teams",
+                description: "Clase sobre la importancia de la telemetría en el monitoreo de pacientes críticos"
             },
             {
                 id: 2,
@@ -91,12 +91,12 @@ class CalendarManager {
             // Si ya está seleccionada, quitarla
             this.selectedClasses.delete(classId);
             this.updateClassCard(classId, false);
-            this.showToast('Clase removida', 'La clase ha sido removida de la selección');
+            this.showToast('La clase ha sido removida de la selección');
         } else {
             // Agregar a la selección
             this.selectedClasses.add(classId);
             this.updateClassCard(classId, true);
-            this.showToast('Clase agregada', 'La clase ha sido agregada a tu calendario');
+            this.showToast('La clase ha sido agregada a tu calendario');
         }
         
         this.updateSelectionCount();
@@ -173,7 +173,7 @@ class CalendarManager {
         this.updateSelectionCount();
         this.updatePreview();
         this.updateDownloadButton();
-        this.showToast('Clase removida', 'La clase ha sido removida de la selección');
+        this.showToast('La clase ha sido removida de la selección');
     }
 
     // Actualizar estado del botón de descarga
