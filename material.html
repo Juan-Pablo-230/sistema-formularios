@@ -22,7 +22,6 @@
                 <label for="claseSeleccionada">Seleccionar Clase *</label>
                 <select id="claseSeleccionada" name="clase" required>
                     <option value="">Seleccione una clase</option>
-                    <option value="Elaboración de Protocolos">Elaboración de Protocolos</option>
                     <option value="Telemetria">Telemetría</option>
                     <option value="Rotación de Personal">Rotación de Personal</option>
                     <option value="Ausentismo">Ausentismo</option>
@@ -63,12 +62,6 @@
     <script>
     // Configuración de disponibilidad de las clases
     const REGLAS_DISPONIBILIDAD = {
-        "Elaboración de Protocolos": {
-            disponible: {
-                desde: "2026-02-05T13:00:00", // 5 de Febrero, 13:00hs
-                hasta: "2026-02-07T11:00:00"   // 7 de Febrero, 11:00hs
-            }
-        },
         "Telemetria": {
             disponible: {
                 desde: "2026-02-10T10:00:00", // 10 de Febrero, 10:00hs
