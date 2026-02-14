@@ -1024,6 +1024,511 @@ app.get('/api/material-historico/init', async (req, res) => {
     }
 });
 
+// ==================== RUTAS DE CLASES HISTÓRICAS (GESTIÓN VISUAL) ====================
+
+// Obtener todas las clases históricas
+app.get('/api/clases-historicas', async (req, res) => {
+    try {
+        console.log('📥 GET /api/clases-historicas');
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        const clases = await db.collection('clases_historicas')
+            .find({})
+            .sort({ fechaClase: -1 })
+            .toArray();
+        
+        console.log(`✅ ${clases.length} clases históricas obtenidas`);
+        
+        res.json({ 
+            success: true, 
+            data: clases 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo clases históricas:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Obtener una clase específica por ID
+app.get('/api/clases-historicas/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`📥 GET /api/clases-historicas/${id}`);
+        
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'ID inválido' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        const clase = await db.collection('clases_historicas').findOne({ 
+            _id: new ObjectId(id) 
+        });
+        
+        if (!clase) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Clase no encontrada' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            data: clase 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo clase:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Crear nueva clase histórica
+app.post('/api/clases-historicas', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        console.log('📥 POST /api/clases-historicas - Usuario:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que es admin
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario || usuario.role !== 'admin') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Solo administradores pueden crear clases' 
+            });
+        }
+        
+        const { nombre, descripcion, fechaClase, enlaces, activa, instructores, tags } = req.body;
+        
+        // Validaciones básicas
+        if (!nombre || !fechaClase || !enlaces?.youtube || !enlaces?.powerpoint) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Faltan campos requeridos' 
+            });
+        }
+        
+        const nuevaClase = {
+            nombre,
+            descripcion: descripcion || '',
+            fechaClase: new Date(fechaClase),
+            enlaces: {
+                youtube: enlaces.youtube,
+                powerpoint: enlaces.powerpoint
+            },
+            activa: activa !== false,
+            instructores: instructores || [],
+            tags: tags || [],
+            fechaCreacion: new Date(),
+            creadoPor: new ObjectId(userHeader)
+        };
+        
+        const result = await db.collection('clases_historicas').insertOne(nuevaClase);
+        
+        console.log('✅ Clase creada:', result.insertedId);
+        
+        res.json({ 
+            success: true, 
+            message: 'Clase creada exitosamente',
+            data: { ...nuevaClase, _id: result.insertedId }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error creando clase:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Actualizar clase histórica
+app.put('/api/clases-historicas/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userHeader = req.headers['user-id'];
+        console.log(`📥 PUT /api/clases-historicas/${id} - Usuario:`, userHeader);
+        
+        if (!userHeader || !ObjectId.isValid(id)) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Solicitud inválida' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que es admin
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario || usuario.role !== 'admin') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Solo administradores pueden actualizar clases' 
+            });
+        }
+        
+        const { nombre, descripcion, fechaClase, enlaces, activa, instructores, tags } = req.body;
+        
+        // Validaciones básicas
+        if (!nombre || !fechaClase || !enlaces?.youtube || !enlaces?.powerpoint) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Faltan campos requeridos' 
+            });
+        }
+        
+        const updateData = {
+            $set: {
+                nombre,
+                descripcion: descripcion || '',
+                fechaClase: new Date(fechaClase),
+                enlaces: {
+                    youtube: enlaces.youtube,
+                    powerpoint: enlaces.powerpoint
+                },
+                activa: activa !== false,
+                instructores: instructores || [],
+                tags: tags || [],
+                fechaActualizacion: new Date()
+            }
+        };
+        
+        const result = await db.collection('clases_historicas').updateOne(
+            { _id: new ObjectId(id) },
+            updateData
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Clase no encontrada' 
+            });
+        }
+        
+        console.log('✅ Clase actualizada:', id);
+        
+        res.json({ 
+            success: true, 
+            message: 'Clase actualizada exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error actualizando clase:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Eliminar clase histórica
+app.delete('/api/clases-historicas/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userHeader = req.headers['user-id'];
+        console.log(`📥 DELETE /api/clases-historicas/${id} - Usuario:`, userHeader);
+        
+        if (!userHeader || !ObjectId.isValid(id)) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Solicitud inválida' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que es admin
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario || usuario.role !== 'admin') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Solo administradores pueden eliminar clases' 
+            });
+        }
+        
+        const result = await db.collection('clases_historicas').deleteOne({
+            _id: new ObjectId(id)
+        });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Clase no encontrada' 
+            });
+        }
+        
+        console.log('✅ Clase eliminada:', id);
+        
+        res.json({ 
+            success: true, 
+            message: 'Clase eliminada exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error eliminando clase:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// ==================== RUTAS DE MATERIAL HISTÓRICO (SOLICITUDES) ====================
+
+// Guardar solicitud de material histórico
+app.post('/api/material-historico/solicitudes', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        console.log('📦 POST /material-historico/solicitudes - Headers user-id:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado - Falta user-id en headers' 
+            });
+        }
+        
+        const { claseId, claseNombre, email, youtube, powerpoint } = req.body;
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que el usuario existe
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Verificar si ya solicitó esta clase
+        const solicitudExistente = await db.collection('material_historico').findOne({
+            usuarioId: new ObjectId(userHeader),
+            claseId: claseId
+        });
+        
+        if (solicitudExistente) {
+            // Si ya existe, devolvemos los enlaces pero no creamos duplicado
+            return res.json({ 
+                success: true, 
+                message: 'Material ya solicitado anteriormente',
+                data: solicitudExistente,
+                exists: true
+            });
+        }
+        
+        // Crear nueva solicitud
+        const nuevaSolicitud = {
+            usuarioId: new ObjectId(userHeader),
+            claseId: claseId,
+            claseNombre: claseNombre,
+            email: email,
+            youtube: youtube,
+            powerpoint: powerpoint,
+            fechaSolicitud: new Date()
+        };
+        
+        await db.collection('material_historico').insertOne(nuevaSolicitud);
+        
+        console.log('✅ Solicitud guardada:', nuevaSolicitud._id);
+        
+        res.json({ 
+            success: true, 
+            message: 'Solicitud de material histórico registrada exitosamente',
+            data: nuevaSolicitud
+        });
+        
+    } catch (error) {
+        console.error('❌ Error registrando solicitud de material histórico:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Obtener solicitudes de material histórico
+app.get('/api/material-historico/solicitudes', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        console.log('📦 GET /material-historico/solicitudes - Headers user-id:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado - Falta user-id en headers' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que el usuario existe
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Si es admin, puede ver todas las solicitudes
+        // Si no es admin, solo puede ver las suyas
+        let matchCriteria = { usuarioId: new ObjectId(userHeader) };
+        
+        if (usuario.role === 'admin') {
+            console.log('👑 Admin: viendo TODAS las solicitudes de material histórico');
+            matchCriteria = {};
+        }
+        
+        // Obtener solicitudes con datos del usuario
+        const solicitudes = await db.collection('material_historico')
+            .aggregate([
+                {
+                    $match: matchCriteria
+                },
+                {
+                    $lookup: {
+                        from: 'usuarios',
+                        localField: 'usuarioId',
+                        foreignField: '_id',
+                        as: 'usuario'
+                    }
+                },
+                { $unwind: { path: '$usuario', preserveNullAndEmptyArrays: true } },
+                { $sort: { fechaSolicitud: -1 } }
+            ])
+            .toArray();
+        
+        console.log(`📊 Encontradas ${solicitudes.length} solicitudes de material histórico`);
+        
+        res.json({ 
+            success: true, 
+            data: solicitudes 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo solicitudes de material histórico:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Inicializar colección de material histórico
+app.get('/api/material-historico/init', async (req, res) => {
+    try {
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar/crear colección de clases históricas
+        const clasesHistoricasExists = await db.listCollections({ name: 'clases_historicas' }).hasNext();
+        if (!clasesHistoricasExists) {
+            console.log('📝 Creando colección "clases_historicas"...');
+            await db.createCollection('clases_historicas');
+            
+            await db.collection('clases_historicas').createIndex({ fechaClase: -1 });
+            await db.collection('clases_historicas').createIndex({ nombre: 1 });
+            
+            // Insertar algunas clases de ejemplo
+            const clasesEjemplo = [
+                {
+                    nombre: "Telemetría Avanzada",
+                    descripcion: "Clase grabada sobre monitoreo cardíaco y telemetría",
+                    fechaClase: new Date('2026-02-10'),
+                    enlaces: {
+                        youtube: "https://www.youtube.com/watch?v=telemetria2026",
+                        powerpoint: "https://docs.google.com/presentation/d/1-telemetria"
+                    },
+                    activa: true,
+                    fechaCreacion: new Date()
+                },
+                {
+                    nombre: "Rotación de Personal en Salud",
+                    descripcion: "Estrategias y mejores prácticas para rotación de personal",
+                    fechaClase: new Date('2026-02-11'),
+                    enlaces: {
+                        youtube: "https://www.youtube.com/watch?v=rotacion2026",
+                        powerpoint: "https://docs.google.com/presentation/d/1-rotacion"
+                    },
+                    activa: true,
+                    fechaCreacion: new Date()
+                }
+            ];
+            
+            await db.collection('clases_historicas').insertMany(clasesEjemplo);
+            console.log('✅ Clases de ejemplo insertadas');
+        }
+        
+        // Verificar/crear colección de material histórico
+        const materialHistoricoExists = await db.listCollections({ name: 'material_historico' }).hasNext();
+        if (!materialHistoricoExists) {
+            console.log('📝 Creando colección "material_historico"...');
+            await db.createCollection('material_historico');
+            
+            await db.collection('material_historico').createIndex({ usuarioId: 1, claseId: 1 });
+            await db.collection('material_historico').createIndex({ fechaSolicitud: -1 });
+            
+            console.log('✅ Colección "material_historico" creada con índices');
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Sistema de material histórico inicializado',
+            clasesHistoricas: clasesHistoricasExists ? 'existe' : 'creada',
+            materialHistorico: materialHistoricoExists ? 'existe' : 'creada'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error inicializando material histórico:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
 // ==================== RUTAS DE ADMINISTRACIÓN ====================
 app.get('/api/admin/usuarios', async (req, res) => {
     try {
