@@ -1,15 +1,24 @@
-console.log('📚 material-historico.js cargado - MongoDB Version');
+console.log('📚 material-historico.js cargado - Versión con filtro por año y mes');
 
 class MaterialHistorico {
     constructor() {
         this.solicitudes = [];
         this.clasesHistoricas = [];
+        this.clasesFiltradas = [];
+        this.anosDisponibles = [];
+        this.mesesDisponibles = [];
+        this.anoSeleccionado = null;
+        this.mesSeleccionado = null;
         this.apiBaseUrl = window.location.origin + '/api';
+        this.nombresMeses = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
         this.init();
     }
 
     async init() {
-        console.log('🚀 Inicializando sistema de material histórico...');
+        console.log('🚀 Inicializando sistema de material histórico con filtro por año y mes...');
         
         await this.esperarAuthSystem();
         
@@ -20,8 +29,8 @@ class MaterialHistorico {
             return;
         }
 
-        await this.cargarClasesHistoricas();
         this.configurarUI();
+        await this.cargarClasesHistoricas();
         await this.cargarMisSolicitudes();
     }
 
@@ -45,36 +54,36 @@ class MaterialHistorico {
 
     async cargarClasesHistoricas() {
         try {
-            console.log('📥 Cargando clases históricas...');
+            console.log('📥 Cargando clases históricas desde MongoDB...');
             
-            // Intentar cargar desde MongoDB primero
+            const user = authSystem.getCurrentUser();
             const response = await fetch(`${this.apiBaseUrl}/clases-historicas`, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'user-id': authSystem.getCurrentUser()._id
+                    'user-id': user._id
                 }
             });
-            
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.data) {
-                    this.clasesHistoricas = result.data;
-                    console.log(`✅ ${this.clasesHistoricas.length} clases históricas cargadas desde MongoDB`);
-                } else {
-                    // Si no hay datos en MongoDB, usar datos de ejemplo
-                    this.cargarClasesEjemplo();
-                }
-            } else {
-                // Si hay error, usar datos de ejemplo
-                this.cargarClasesEjemplo();
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
             }
             
-            this.llenarSelectClases();
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                this.clasesHistoricas = result.data.filter(clase => clase.activa !== false);
+                console.log(`✅ ${this.clasesHistoricas.length} clases históricas cargadas`);
+                
+                this.procesarAnosDisponibles();
+                this.llenarSelectorAnos();
+            } else {
+                throw new Error('Respuesta inválida del servidor');
+            }
             
         } catch (error) {
             console.error('❌ Error cargando clases históricas:', error);
+            this.mostrarMensaje('Error al cargar clases. Usando datos de ejemplo.', 'info');
             this.cargarClasesEjemplo();
-            this.llenarSelectClases();
         }
     }
 
@@ -84,81 +93,256 @@ class MaterialHistorico {
             {
                 _id: "clase_001",
                 nombre: "Telemetría Avanzada",
-                descripcion: "Clase grabada sobre monitoreo cardíaco y telemetría",
-                fechaClase: "2026-02-10",
+                descripcion: "Monitoreo cardíaco continuo y telemetría en unidades coronarias",
+                fechaClase: "2026-02-10T10:00:00Z",
                 enlaces: {
-                    youtube: "https://www.youtube.com/watch?v=ejemplo1",
-                    powerpoint: "https://docs.google.com/presentation/d/ejemplo1"
-                }
+                    youtube: "https://www.youtube.com/watch?v=telemetria2026",
+                    powerpoint: "https://docs.google.com/presentation/d/1-telemetria"
+                },
+                activa: true,
+                instructores: ["Dr. Juan Pérez", "Lic. María González"]
             },
             {
                 _id: "clase_002",
                 nombre: "Rotación de Personal en Salud",
-                descripcion: "Estrategias y mejores prácticas para rotación de personal",
-                fechaClase: "2026-02-11",
+                descripcion: "Estrategias para gestionar la rotación del personal",
+                fechaClase: "2026-02-15T17:00:00Z",
                 enlaces: {
-                    youtube: "https://www.youtube.com/watch?v=ejemplo2",
-                    powerpoint: "https://docs.google.com/presentation/d/ejemplo2"
-                }
+                    youtube: "https://www.youtube.com/watch?v=rotacion2026",
+                    powerpoint: "https://docs.google.com/presentation/d/1-rotacion"
+                },
+                activa: true,
+                instructores: ["Lic. Ana López"]
             },
             {
                 _id: "clase_003",
                 nombre: "Gestión de Ausentismo",
-                descripcion: "Manejo y prevención del ausentismo laboral",
-                fechaClase: "2026-02-19",
+                descripcion: "Herramientas para reducir el ausentismo laboral",
+                fechaClase: "2025-11-20T13:00:00Z",
                 enlaces: {
-                    youtube: "https://www.youtube.com/watch?v=ejemplo3",
-                    powerpoint: "https://docs.google.com/presentation/d/ejemplo3"
-                }
+                    youtube: "https://www.youtube.com/watch?v=ausentismo2025",
+                    powerpoint: "https://docs.google.com/presentation/d/1-ausentismo"
+                },
+                activa: true,
+                instructores: ["Lic. Laura Martínez"]
             },
             {
                 _id: "clase_004",
-                nombre: "Stroke / IAM - Protocolos de Emergencia",
-                descripcion: "Actualización en manejo de ACV e Infarto",
-                fechaClase: "2026-02-24",
+                nombre: "Stroke / IAM",
+                descripcion: "Protocolos de emergencia para ACV e Infarto",
+                fechaClase: "2025-09-24T13:00:00Z",
                 enlaces: {
-                    youtube: "https://www.youtube.com/watch?v=ejemplo4",
-                    powerpoint: "https://docs.google.com/presentation/d/ejemplo4"
-                }
+                    youtube: "https://www.youtube.com/watch?v=stroke2025",
+                    powerpoint: "https://docs.google.com/presentation/d/1-stroke"
+                },
+                activa: true,
+                instructores: ["Dr. Roberto Sánchez"]
             },
             {
                 _id: "clase_005",
                 nombre: "CoPaP - Cuidados Paliativos",
                 descripcion: "Abordaje integral en cuidados paliativos",
-                fechaClase: "2026-02-25",
+                fechaClase: "2024-08-25T17:00:00Z",
                 enlaces: {
-                    youtube: "https://www.youtube.com/watch?v=ejemplo5",
-                    powerpoint: "https://docs.google.com/presentation/d/ejemplo5"
-                }
+                    youtube: "https://www.youtube.com/watch?v=copap2024",
+                    powerpoint: "https://docs.google.com/presentation/d/1-copap"
+                },
+                activa: true,
+                instructores: ["Lic. Silvia Vargas"]
             }
         ];
+        
+        this.procesarAnosDisponibles();
+        this.llenarSelectorAnos();
+    }
+
+    procesarAnosDisponibles() {
+        // Extraer años únicos de las fechas de las clases
+        const anos = new Set();
+        
+        this.clasesHistoricas.forEach(clase => {
+            if (clase.fechaClase) {
+                const fecha = new Date(clase.fechaClase);
+                const ano = fecha.getFullYear();
+                if (!isNaN(ano)) {
+                    anos.add(ano);
+                }
+            }
+        });
+        
+        // Convertir a array y ordenar descendente (más reciente primero)
+        this.anosDisponibles = Array.from(anos).sort((a, b) => b - a);
+        
+        console.log(`📅 Años disponibles: ${this.anosDisponibles.join(', ')}`);
+    }
+
+    llenarSelectorAnos() {
+        const selectAno = document.getElementById('anoSeleccionado');
+        if (!selectAno) return;
+        
+        if (this.anosDisponibles.length === 0) {
+            selectAno.innerHTML = '<option value="">No hay años disponibles</option>';
+            return;
+        }
+        
+        selectAno.innerHTML = '<option value="">Seleccione un año</option>';
+        
+        this.anosDisponibles.forEach(ano => {
+            const option = document.createElement('option');
+            option.value = ano;
+            option.textContent = ano;
+            selectAno.appendChild(option);
+        });
+        
+        // Agregar evento de cambio
+        selectAno.addEventListener('change', (e) => {
+            this.anoSeleccionado = e.target.value;
+            this.procesarMesesDisponibles();
+        });
+        
+        console.log('✅ Selector de años cargado');
+    }
+
+    procesarMesesDisponibles() {
+        if (!this.anoSeleccionado) {
+            this.mesesDisponibles = [];
+            this.llenarSelectorMeses();
+            return;
+        }
+        
+        // Extraer meses únicos para el año seleccionado
+        const meses = new Set();
+        
+        this.clasesHistoricas.forEach(clase => {
+            if (clase.fechaClase) {
+                const fecha = new Date(clase.fechaClase);
+                if (fecha.getFullYear() === parseInt(this.anoSeleccionado)) {
+                    const mes = fecha.getMonth(); // 0-11
+                    meses.add(mes);
+                }
+            }
+        });
+        
+        // Convertir a array y ordenar (1-12)
+        this.mesesDisponibles = Array.from(meses).sort((a, b) => a - b);
+        
+        console.log(`📆 Meses disponibles para ${this.anoSeleccionado}: ${this.mesesDisponibles.map(m => this.nombresMeses[m]).join(', ')}`);
+        
+        this.llenarSelectorMeses();
+    }
+
+    llenarSelectorMeses() {
+        const selectMes = document.getElementById('mesSeleccionado');
+        if (!selectMes) return;
+        
+        // Limpiar y habilitar/deshabilitar
+        selectMes.innerHTML = '';
+        selectMes.disabled = false;
+        
+        if (!this.anoSeleccionado) {
+            selectMes.innerHTML = '<option value="">Primero seleccione año</option>';
+            selectMes.disabled = true;
+            return;
+        }
+        
+        if (this.mesesDisponibles.length === 0) {
+            selectMes.innerHTML = '<option value="">No hay meses con clases</option>';
+            this.filtrarClasesPorMes();
+            return;
+        }
+        
+        selectMes.innerHTML = '<option value="">Seleccione un mes</option>';
+        
+        this.mesesDisponibles.forEach(mesNum => {
+            const option = document.createElement('option');
+            option.value = mesNum;
+            option.textContent = this.nombresMeses[mesNum];
+            selectMes.appendChild(option);
+        });
+        
+        // Agregar evento de cambio
+        selectMes.addEventListener('change', (e) => {
+            this.mesSeleccionado = e.target.value;
+            this.filtrarClasesPorMes();
+        });
+        
+        console.log('✅ Selector de meses cargado');
+    }
+
+    filtrarClasesPorMes() {
+        const selectClase = document.getElementById('claseSeleccionada');
+        const form = document.getElementById('materialHistoricoForm');
+        const sinClasesMensaje = document.getElementById('sinClasesMensaje');
+        
+        if (!this.anoSeleccionado || !this.mesSeleccionado) {
+            form.style.display = 'none';
+            sinClasesMensaje.style.display = 'none';
+            return;
+        }
+        
+        // Filtrar clases por año y mes
+        this.clasesFiltradas = this.clasesHistoricas.filter(clase => {
+            if (!clase.fechaClase) return false;
+            const fecha = new Date(clase.fechaClase);
+            return fecha.getFullYear() === parseInt(this.anoSeleccionado) && 
+                   fecha.getMonth() === parseInt(this.mesSeleccionado);
+        });
+        
+        console.log(`🔍 ${this.clasesFiltradas.length} clases encontradas para ${this.nombresMeses[this.mesSeleccionado]} ${this.anoSeleccionado}`);
+        
+        if (this.clasesFiltradas.length === 0) {
+            // No hay clases para este período
+            form.style.display = 'none';
+            sinClasesMensaje.style.display = 'block';
+            return;
+        }
+        
+        // Hay clases, mostrar el formulario
+        sinClasesMensaje.style.display = 'none';
+        form.style.display = 'block';
+        this.llenarSelectClases();
     }
 
     llenarSelectClases() {
         const select = document.getElementById('claseSeleccionada');
         if (!select) return;
         
-        select.innerHTML = '<option value="">Seleccione una clase histórica</option>';
+        select.innerHTML = '<option value="">Seleccione una clase</option>';
         
-        this.clasesHistoricas.sort((a, b) => {
-            if (a.fechaClase && b.fechaClase) {
-                return new Date(b.fechaClase) - new Date(a.fechaClase);
-            }
-            return 0;
+        // Ordenar por fecha (más reciente primero)
+        this.clasesFiltradas.sort((a, b) => {
+            return new Date(b.fechaClase) - new Date(a.fechaClase);
         });
         
-        this.clasesHistoricas.forEach(clase => {
+        this.clasesFiltradas.forEach(clase => {
             const option = document.createElement('option');
             option.value = clase._id;
-            option.textContent = `${clase.nombre} (${clase.fechaClase || 'Fecha no disponible'})`;
+            
+            // Formatear fecha para mostrar
+            let fechaTexto = '';
+            if (clase.fechaClase) {
+                const fecha = new Date(clase.fechaClase);
+                fechaTexto = fecha.toLocaleDateString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+            
+            option.textContent = `${clase.nombre} (${fechaTexto})`;
             option.dataset.nombre = clase.nombre;
             option.dataset.descripcion = clase.descripcion || '';
+            option.dataset.fecha = clase.fechaClase;
             option.dataset.youtube = clase.enlaces?.youtube || '';
             option.dataset.powerpoint = clase.enlaces?.powerpoint || '';
+            option.dataset.instructores = clase.instructores?.join(', ') || '';
+            
             select.appendChild(option);
         });
         
-        console.log(`✅ Select cargado con ${this.clasesHistoricas.length} opciones`);
+        console.log(`✅ Selector de clases cargado con ${this.clasesFiltradas.length} opciones`);
     }
 
     configurarUI() {
@@ -203,8 +387,10 @@ class MaterialHistorico {
             id: claseId,
             nombre: selectOption.dataset.nombre,
             descripcion: selectOption.dataset.descripcion,
+            fecha: selectOption.dataset.fecha,
             youtube: selectOption.dataset.youtube,
-            powerpoint: selectOption.dataset.powerpoint
+            powerpoint: selectOption.dataset.powerpoint,
+            instructores: selectOption.dataset.instructores
         };
 
         // Mostrar enlaces del material
@@ -218,10 +404,43 @@ class MaterialHistorico {
         const materialLinks = document.getElementById('materialLinks');
         const claseNombre = document.getElementById('claseNombre');
         const claseDescripcion = document.getElementById('claseDescripcion');
+        const claseFecha = document.getElementById('claseFecha');
         const linksContainer = document.getElementById('linksContainer');
         
-        claseNombre.textContent = claseData.nombre;
+        // Formatear fecha para mostrar
+        let fechaFormateada = '';
+        if (claseData.fecha) {
+            const fecha = new Date(claseData.fecha);
+            fechaFormateada = fecha.toLocaleDateString('es-AR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            // Capitalizar primera letra
+            fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+        }
+        
+        claseNombre.innerHTML = `${claseData.nombre} <span class="periodo-badge">${this.nombresMeses[this.mesSeleccionado]} ${this.anoSeleccionado}</span>`;
         claseDescripcion.textContent = claseData.descripcion || 'Material de la clase grabada';
+        claseFecha.textContent = `📅 ${fechaFormateada}`;
+        
+        // Limpiar instructores anteriores
+        const instructoresExistente = document.getElementById('instructoresInfo');
+        if (instructoresExistente) {
+            instructoresExistente.remove();
+        }
+        
+        if (claseData.instructores) {
+            const instructoresElem = document.createElement('p');
+            instructoresElem.id = 'instructoresInfo';
+            instructoresElem.innerHTML = `👥 Instructores: ${claseData.instructores}`;
+            instructoresElem.style.marginTop = '10px';
+            instructoresElem.style.color = 'var(--text-secondary)';
+            document.getElementById('claseInfo').appendChild(instructoresElem);
+        }
         
         linksContainer.innerHTML = '';
         
@@ -251,17 +470,27 @@ class MaterialHistorico {
             `;
         }
         
-        // Ocultar formulario, mostrar enlaces
+        // Ocultar filtros y formulario, mostrar enlaces
+        document.querySelector('.filtros-container').style.display = 'none';
         document.getElementById('materialHistoricoForm').style.display = 'none';
+        document.getElementById('sinClasesMensaje').style.display = 'none';
         materialLinks.classList.add('visible');
         
         this.mostrarMensaje('✅ Material disponible', 'success');
     }
 
     ocultarMaterial() {
-        document.getElementById('materialHistoricoForm').style.display = 'block';
+        document.querySelector('.filtros-container').style.display = 'block';
+        document.getElementById('materialHistoricoForm').style.display = 'none';
         document.getElementById('materialLinks').classList.remove('visible');
         document.getElementById('claseSeleccionada').value = '';
+        
+        // Resetear selectores
+        document.getElementById('anoSeleccionado').value = '';
+        document.getElementById('mesSeleccionado').innerHTML = '<option value="">Primero seleccione año</option>';
+        document.getElementById('mesSeleccionado').disabled = true;
+        this.anoSeleccionado = null;
+        this.mesSeleccionado = null;
     }
 
     async guardarSolicitud(claseData) {
@@ -274,6 +503,7 @@ class MaterialHistorico {
                 email: user.email,
                 youtube: claseData.youtube,
                 powerpoint: claseData.powerpoint,
+                fechaClase: claseData.fecha,
                 fechaSolicitud: new Date().toISOString()
             };
 
@@ -288,7 +518,6 @@ class MaterialHistorico {
             
         } catch (error) {
             console.error('❌ Error guardando solicitud:', error);
-            // Si no se puede guardar en MongoDB, igual mostramos el material
             this.mostrarMensaje('Material disponible (modo offline)', 'info');
         }
     }
@@ -311,7 +540,6 @@ class MaterialHistorico {
                 if (result.success && result.data) {
                     this.solicitudes = result.data;
                 } else {
-                    // Si no hay datos en MongoDB, usar localStorage como respaldo
                     this.cargarSolicitudesLocal();
                 }
             } else {
@@ -344,7 +572,7 @@ class MaterialHistorico {
         if (this.solicitudes.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: center; color: #666; padding: 20px;">
+                    <td colspan="4" style="text-align: center; color: #666; padding: 20px;">
                         No has solicitado material histórico todavía
                     </td>
                 </tr>
@@ -360,21 +588,25 @@ class MaterialHistorico {
         this.solicitudes.forEach(solicitud => {
             const row = document.createElement('tr');
             
-            const fecha = solicitud.fechaSolicitud ? 
-                new Date(solicitud.fechaSolicitud).toLocaleString('es-AR', {
-                    year: 'numeric',
-                    month: '2-digit',
+            const fechaClase = solicitud.fechaClase ? 
+                new Date(solicitud.fechaClase).toLocaleDateString('es-AR', {
                     day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
-                }) : 
+                }) : 'Fecha no disponible';
+            
+            const fechaSolicitud = solicitud.fechaSolicitud ? 
+                new Date(solicitud.fechaSolicitud).toLocaleString('es-AR') : 
                 'Fecha no disponible';
             
             const materialHTML = this.generarMaterialHTML(solicitud);
             
             row.innerHTML = `
                 <td>${solicitud.claseNombre || solicitud.clase || 'N/A'}</td>
-                <td>${fecha}</td>
+                <td>${fechaClase}</td>
+                <td>${fechaSolicitud}</td>
                 <td class="material-badge">${materialHTML}</td>
             `;
             
@@ -397,7 +629,7 @@ class MaterialHistorico {
             return '<span style="color: #666;">Material disponible</span>';
         }
         
-        return enlaces.join(' ');
+        return enlaces.join(' | ');
     }
 
     mostrarMensaje(mensaje, tipo) {

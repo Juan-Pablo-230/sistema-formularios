@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solicitud de Material Histórico</title>
+    <title>Solicitud de clases</title>
     <link rel="stylesheet" href="/css/formularios.css">
     <link rel="stylesheet" href="/css/material-historico.css">
 </head>
 <body>
     <div class="container">
-        <h1>📚 Solicitar Material Histórico de Clases</h1>
+        <h1>📚 Solicitar de clases</h1>
         
         <div class="back-btn-container">
             <button onclick="window.location.href='/index.html'" class="back-btn">← Volver al Menú Principal</button>
@@ -18,11 +18,31 @@
         
         <div id="statusMessage" class="status-message" style="display: none;"></div>
         
-        <form id="materialHistoricoForm">
+        <!-- Selectores de Año y Mes -->
+        <div class="filtros-container" style="margin-bottom: 20px; padding: 20px; background: var(--bg-card); border-radius: 10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label for="anoSeleccionado" style="display: block; margin-bottom: 8px; font-weight: bold; color: var(--text-primary);">📅 Año</label>
+                    <select id="anoSeleccionado" class="filtro-select" style="width: 100%; padding: 12px; border-radius: 8px;">
+                        <option value="">Seleccione el año</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="mesSeleccionado" style="display: block; margin-bottom: 8px; font-weight: bold; color: var(--text-primary);">📆 Mes</label>
+                    <select id="mesSeleccionado" class="filtro-select" style="width: 100%; padding: 12px; border-radius: 8px;" disabled>
+                        <option value="">Primero seleccione el año</option>
+                    </select>
+                </div>
+            </div>
+            <small class="field-info" style="display: block; text-align: center;">Seleccione año y mes para ver las clases disponibles</small>
+        </div>
+        
+        <form id="materialHistoricoForm" style="display: none;">
             <div class="form-group" id="material">
                 <label for="claseSeleccionada">Seleccionar Clase Histórica *</label>
                 <select id="claseSeleccionada" name="clase" required>
-                    <option value="">Cargando clases disponibles...</option>
+                    <option value="">Primero seleccione año y mes</option>
                 </select>
                 <small class="field-info">Seleccione la clase para acceder a su material grabado</small>
             </div>
@@ -36,6 +56,13 @@
             <button type="submit" class="submit-btn">🔍 Obtener Material de la Clase</button>
         </form>
         
+        <!-- Mensaje cuando no hay clases en el período seleccionado -->
+        <div id="sinClasesMensaje" class="sin-clases-mensaje" style="display: none; text-align: center; padding: 40px; background: var(--bg-card); border-radius: 10px; margin-top: 20px;">
+            <div style="font-size: 3em; margin-bottom: 15px;">📭</div>
+            <h3 style="color: var(--text-primary); margin-bottom: 10px;">No hay clases disponibles</h3>
+            <p style="color: var(--text-secondary);">No se encontraron clases para el período seleccionado.</p>
+        </div>
+        
         <!-- Sección de enlaces de material -->
         <div id="materialLinks" class="material-links">
             <h2 style="text-align: center; margin-bottom: 20px;">📎 Material de la Clase</h2>
@@ -43,6 +70,7 @@
             <div id="claseInfo" class="class-info">
                 <h3 id="claseNombre"></h3>
                 <p id="claseDescripcion"></p>
+                <p id="claseFecha" style="color: var(--text-muted); font-size: 0.9em; margin-top: 10px;"></p>
             </div>
             
             <div class="links-container" id="linksContainer">
@@ -60,6 +88,7 @@
                 <thead>
                     <tr>
                         <th>Clase</th>
+                        <th>Fecha Clase</th>
                         <th>Fecha Solicitud</th>
                         <th>Material</th>
                     </tr>
