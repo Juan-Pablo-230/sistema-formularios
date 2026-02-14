@@ -1,0 +1,262 @@
+:root {
+    --youtube-color: #ff0000;
+    --youtube-hover: #cc0000;
+    --powerpoint-color: #d24726;
+    --powerpoint-hover: #b33e1f;
+    --link-bg: rgba(255, 255, 255, 0.1);
+    --link-border: rgba(255, 255, 255, 0.2);
+}
+
+.material-links {
+    margin-top: 30px;
+    padding: 30px;
+    background: var(--bg-card);
+    border-radius: 15px;
+    display: none;
+    box-shadow: var(--shadow-lg);
+    animation: slideDown 0.5s ease;
+}
+
+.material-links.visible {
+    display: block;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.class-info {
+    background: var(--bg-container);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    border-left: 4px solid var(--accent-color);
+}
+
+.class-info h3 {
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    font-size: 1.3em;
+}
+
+.class-info p {
+    color: var(--text-secondary);
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.links-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+    margin-top: 20px;
+}
+
+.link-card {
+    padding: 30px 20px;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.link-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--link-border);
+}
+
+.link-card.youtube {
+    background: linear-gradient(135deg, var(--youtube-color) 0%, var(--youtube-hover) 100%);
+}
+
+.link-card.powerpoint {
+    background: linear-gradient(135deg, var(--powerpoint-color) 0%, var(--powerpoint-hover) 100%);
+}
+
+.link-card a {
+    color: white;
+    text-decoration: none;
+    display: block;
+}
+
+.link-card .icon {
+    font-size: 4em;
+    margin-bottom: 15px;
+}
+
+.link-card .title {
+    font-size: 1.4em;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.link-card .subtitle {
+    font-size: 0.95em;
+    opacity: 0.9;
+}
+
+.link-card .hover-info {
+    margin-top: 15px;
+    font-size: 0.85em;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.link-card:hover .hover-info {
+    opacity: 1;
+}
+
+.field-info {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.status-message {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.status-message.success {
+    background: rgba(52, 168, 83, 0.1);
+    border: 2px solid var(--success-500);
+    color: var(--success-500);
+}
+
+.status-message.error {
+    background: rgba(234, 67, 53, 0.1);
+    border: 2px solid var(--error-500);
+    color: var(--error-500);
+}
+
+.status-message.info {
+    background: rgba(66, 133, 244, 0.1);
+    border: 2px solid var(--accent-color);
+    color: var(--accent-color);
+}
+
+#misSolicitudes {
+    margin-top: 40px;
+    padding: 20px;
+    background: var(--bg-container);
+    border-radius: 10px;
+}
+
+.inscripciones-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.inscripciones-table th {
+    background: var(--accent-color);
+    color: white;
+    padding: 12px;
+    text-align: left;
+}
+
+.inscripciones-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.inscripciones-table tr:hover {
+    background: var(--bg-card);
+}
+
+.material-badge {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.material-badge a {
+    color: var(--accent-color);
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--bg-card);
+    transition: all 0.3s ease;
+}
+
+.material-badge a:hover {
+    background: var(--accent-color);
+    color: white;
+}
+
+.action-buttons {
+    margin-top: 20px;
+}
+
+.action-buttons .back-btn {
+    background: var(--accent-color);
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.action-buttons .back-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 768px) {
+    .links-container {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .link-card {
+        padding: 20px;
+    }
+    
+    .link-card .icon {
+        font-size: 3em;
+    }
+    
+    .link-card .title {
+        font-size: 1.2em;
+    }
+    
+    .class-info {
+        padding: 15px;
+    }
+    
+    .class-info h3 {
+        font-size: 1.1em;
+    }
+}
+
+@media (max-width: 480px) {
+    .material-links {
+        padding: 20px;
+    }
+    
+    .inscripciones-table {
+        font-size: 0.9em;
+    }
+    
+    .inscripciones-table th,
+    .inscripciones-table td {
+        padding: 8px;
+    }
+}

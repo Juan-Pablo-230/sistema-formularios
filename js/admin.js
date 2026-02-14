@@ -10,6 +10,7 @@ class AdminSystem {
         this.vistaActual = 'inscripciones';
         this.usuarioEditando = null;
         this.claseFiltradaActual = null;
+        this.solicitudesMaterialHistoricoData = [];
     }
 
     verifyAdminAccess() {
@@ -67,6 +68,8 @@ class AdminSystem {
         }
     }
 
+    
+
 async loadSolicitudesMaterial() {
     try {
         console.log('📥 Cargando solicitudes de material...');
@@ -92,6 +95,130 @@ async loadSolicitudesMaterial() {
         this.solicitudesMaterialData = [];
         return [];
     }
+}
+
+// Método para cargar solicitudes de material histórico
+async loadSolicitudesMaterialHistorico() {
+    try {
+        console.log('📥 Cargando solicitudes de material histórico...');
+        
+        const user = authSystem.getCurrentUser();
+        if (!user || !user._id) {
+            console.error('❌ No hay usuario logueado');
+            this.solicitudesMaterialHistoricoData = [];
+            return [];
+        }
+        
+        const result = await authSystem.makeRequest('/material-historico/solicitudes', null, 'GET');
+        
+        this.solicitudesMaterialHistoricoData = result.data || [];
+        console.log('✅ Solicitudes de material histórico cargadas:', this.solicitudesMaterialHistoricoData.length);
+        
+        return this.solicitudesMaterialHistoricoData;
+        
+    } catch (error) {
+        console.error('❌ Error cargando solicitudes de material histórico:', error);
+        this.solicitudesMaterialHistoricoData = [];
+        return [];
+    }
+}
+
+// Método para mostrar la tabla de material histórico
+showMaterialHistoricoTable(solicitudes) {
+    const tbody = document.getElementById('materialHistoricoBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+
+    if (solicitudes.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; color: #666; padding: 20px;">
+                    No hay solicitudes de material histórico
+                </td>
+            </tr>
+        `;
+        
+        document.getElementById('totalSolicitudesHistorico').textContent = '0';
+        document.getElementById('clasesDistintasHistorico').textContent = '0';
+        return;
+    }
+
+    // Ordenar por fecha más reciente
+    solicitudes.sort((a, b) => 
+        new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud)
+    );
+
+    // Calcular estadísticas
+    const clasesUnicas = new Set(solicitudes.map(s => s.claseNombre)).size;
+    document.getElementById('totalSolicitudesHistorico').textContent = solicitudes.length;
+    document.getElementById('clasesDistintasHistorico').textContent = clasesUnicas;
+
+    solicitudes.forEach((solicitud, index) => {
+        const row = document.createElement('tr');
+        
+        const fecha = solicitud.fechaSolicitud ? 
+            new Date(solicitud.fechaSolicitud).toLocaleString('es-AR') : 
+            'Fecha no disponible';
+        
+        const materialHTML = this.generarMaterialHistoricoHTML(solicitud);
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${solicitud.usuario?.apellidoNombre || 'N/A'}</td>
+            <td>${solicitud.usuario?.legajo || 'N/A'}</td>
+            <td>${solicitud.claseNombre || 'N/A'}</td>
+            <td>${solicitud.email || solicitud.usuario?.email || 'N/A'}</td>
+            <td>${fecha}</td>
+            <td>${materialHTML}</td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+// Método auxiliar para generar HTML de material
+generarMaterialHistoricoHTML(solicitud) {
+    const enlaces = [];
+    
+    if (solicitud.youtube) {
+        enlaces.push(`<a href="${solicitud.youtube}" target="_blank" class="email-link" title="Ver en YouTube">▶️ YouTube</a>`);
+    }
+    
+    if (solicitud.powerpoint) {
+        enlaces.push(`<a href="${solicitud.powerpoint}" target="_blank" class="email-link" title="Ver presentación">📊 PPT</a>`);
+    }
+    
+    if (enlaces.length === 0) {
+        return '<span style="color: #666;">Material no disponible</span>';
+    }
+    
+    return enlaces.join(' | ');
+}
+
+// Método para cambiar a vista de material histórico
+cambiarVistaMaterialHistorico() {
+    this.vistaActual = 'materialHistorico';
+    
+    // Ocultar todas las secciones
+    document.querySelectorAll('.table-container').forEach(section => {
+        section.style.display = 'none';
+    });
+    
+    // Mostrar sección de material histórico
+    const materialHistoricoSection = document.getElementById('materialHistoricoSection');
+    if (materialHistoricoSection) {
+        materialHistoricoSection.style.display = 'block';
+    }
+    
+    // Actualizar botones de navegación
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById('btnMaterialHistorico').classList.add('active');
+    
+    // Mostrar datos
+    this.showMaterialHistoricoTable(this.solicitudesMaterialHistoricoData);
 }
 
     async initMaterialData() {
@@ -165,6 +292,7 @@ async loadSolicitudesMaterial() {
     // Aplicar el filtro actual después de reconstruir el select
     this.actualizarTablaMaterial();
     this.actualizarBotonExportarMaterial();
+
 }
 
 actualizarTablaMaterial() {
@@ -1654,6 +1782,28 @@ generarFilasPlanilla(inscripciones) {
             });
         }
         
+        if (authSystem.isAdmin() || authSystem.isAdvancedUser()) {
+    await this.loadSolicitudesMaterialHistorico();
+}
+
+// Configurar el botón de material histórico en init():
+const btnMaterialHistorico = document.getElementById('btnMaterialHistorico');
+if (btnMaterialHistorico) {
+    btnMaterialHistorico.addEventListener('click', () => {
+        if (authSystem.isAdmin() || authSystem.isAdvancedUser()) {
+            this.cambiarVistaMaterialHistorico();
+        } else {
+            alert('Solo administradores y usuarios avanzados pueden acceder a esta sección');
+        }
+    });
+    
+    // Mostrar botón solo si tiene permisos
+    if (!authSystem.isAdmin() && !authSystem.isAdvancedUser()) {
+        btnMaterialHistorico.style.display = 'none';
+    }
+}
+
+
         document.getElementById('refreshBtn').addEventListener('click', async () => {
             document.getElementById('refreshBtn').textContent = 'Actualizando...';
             const nuevasInscripciones = await this.loadInscripciones();
@@ -1670,6 +1820,10 @@ generarFilasPlanilla(inscripciones) {
                 this.crearFiltroClasesMaterial(nuevasSolicitudes);
                 this.actualizarTablaMaterial();
             }
+            if (this.vistaActual === 'materialHistorico') {
+    const nuevasSolicitudes = await this.loadSolicitudesMaterialHistorico();
+    this.showMaterialHistoricoTable(nuevasSolicitudes);
+}
             
             document.getElementById('refreshBtn').textContent = '🔄 Actualizar Datos';
         });

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud de Material Histórico</title>
+    <link rel="stylesheet" href="/css/formularios.css">
+    <link rel="stylesheet" href="/css/material-historico.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Solicitar Material Histórico de Clases</h1>
+        
+        <div class="back-btn-container">
+            <button onclick="window.location.href='/index.html'" class="back-btn">← Volver al Menú Principal</button>
+            <button id="logoutBtn" class="back-btn logout-btn">🚪 Cerrar Sesión</button>
+        </div>
+        
+        <div id="statusMessage" class="status-message" style="display: none;"></div>
+        
+        <form id="materialHistoricoForm">
+            <div class="form-group" id="material">
+                <label for="claseSeleccionada">Seleccionar Clase Histórica *</label>
+                <select id="claseSeleccionada" name="clase" required>
+                    <option value="">Cargando clases disponibles...</option>
+                </select>
+                <small class="field-info">Seleccione la clase para acceder a su material grabado</small>
+            </div>
+
+            <div class="form-group" id="material">
+                <label for="emailUsuario">Correo Electrónico</label>
+                <input type="email" id="emailUsuario" name="email" readonly>
+                <small class="field-info">Correo asociado a su cuenta</small>
+            </div>
+
+            <button type="submit" class="submit-btn">🔍 Obtener Material de la Clase</button>
+        </form>
+        
+        <!-- Sección de enlaces de material -->
+        <div id="materialLinks" class="material-links">
+            <h2 style="text-align: center; margin-bottom: 20px;">📎 Material de la Clase</h2>
+            
+            <div id="claseInfo" class="class-info">
+                <h3 id="claseNombre"></h3>
+                <p id="claseDescripcion"></p>
+            </div>
+            
+            <div class="links-container" id="linksContainer">
+                <!-- Los enlaces se llenarán dinámicamente -->
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 30px; text-align: center;">
+                <button id="solicitarOtraClase" class="back-btn">← Solicitar otra clase</button>
+            </div>
+        </div>
+        
+        <div id="misSolicitudes" style="margin-top: 40px;">
+            <h2 style="text-align: center; margin-bottom: 20px;">📋 Mi Historial de Solicitudes</h2>
+            <table class="inscripciones-table" id="tablaMisSolicitudes">
+                <thead>
+                    <tr>
+                        <th>Clase</th>
+                        <th>Fecha Solicitud</th>
+                        <th>Material</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Se llenará dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/material-historico.js"></script>
+</body>
+</html>
