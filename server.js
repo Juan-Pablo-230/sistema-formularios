@@ -1977,6 +1977,186 @@ app.get('/api/material-historico/init', async (req, res) => {
     }
 });
 
+// Crear nueva clase histórica
+app.post('/api/clases-historicas', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que es admin
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario || usuario.role !== 'admin') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Solo administradores pueden crear clases' 
+            });
+        }
+        
+        const { nombre, descripcion, fechaClase, enlaces, activa, instructores, tags } = req.body;
+        
+        const nuevaClase = {
+            nombre,
+            descripcion: descripcion || '',
+            fechaClase: new Date(fechaClase),
+            enlaces,
+            activa: activa !== false,
+            instructores: instructores || [],
+            tags: tags || [],
+            fechaCreacion: new Date(),
+            creadoPor: new ObjectId(userHeader)
+        };
+        
+        const result = await db.collection('clases_historicas').insertOne(nuevaClase);
+        
+        res.json({ 
+            success: true, 
+            message: 'Clase creada exitosamente',
+            data: { ...nuevaClase, _id: result.insertedId }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error creando clase:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Actualizar clase histórica
+app.put('/api/clases-historicas/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userHeader = req.headers['user-id'];
+        
+        if (!userHeader || !ObjectId.isValid(id)) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Solicitud inválida' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que es admin
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario || usuario.role !== 'admin') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Solo administradores pueden actualizar clases' 
+            });
+        }
+        
+        const { nombre, descripcion, fechaClase, enlaces, activa, instructores, tags } = req.body;
+        
+        const updateData = {
+            $set: {
+                nombre,
+                descripcion,
+                fechaClase: new Date(fechaClase),
+                enlaces,
+                activa: activa !== false,
+                instructores: instructores || [],
+                tags: tags || [],
+                fechaActualizacion: new Date()
+            }
+        };
+        
+        const result = await db.collection('clases_historicas').updateOne(
+            { _id: new ObjectId(id) },
+            updateData
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Clase no encontrada' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Clase actualizada exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error actualizando clase:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Eliminar clase histórica
+app.delete('/api/clases-historicas/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userHeader = req.headers['user-id'];
+        
+        if (!userHeader || !ObjectId.isValid(id)) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Solicitud inválida' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que es admin
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario || usuario.role !== 'admin') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Solo administradores pueden eliminar clases' 
+            });
+        }
+        
+        const result = await db.collection('clases_historicas').deleteOne({
+            _id: new ObjectId(id)
+        });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Clase no encontrada' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Clase eliminada exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error eliminando clase:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
 // ==================== INICIAR SERVIDOR ====================
 async function startServer() {
     try {

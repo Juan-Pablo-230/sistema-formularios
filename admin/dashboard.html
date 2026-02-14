@@ -25,6 +25,7 @@
             <button id="btnUsuarios" class="view-btn">👥 Gestión de Usuarios</button>
             <button id="btnMaterial" class="view-btn">📚 Solicitudes de Material</button>
             <button id="btnMaterialHistorico" class="view-btn">📚 Material Histórico</button>
+            <button id="btnGestionClasesVisual" class="view-btn">🎯 Gestión Visual de Clases</button>
         </div>
 
         <!-- Estadísticas dinámicas -->
@@ -194,9 +195,117 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Sección de Gestión Visual de Clases Históricas -->
+<div class="table-container" id="gestionClasesVisualSection" style="display: none;">
+    <h2>📚 Gestión Visual de Clases Históricas</h2>
+    
+    <div class="gestion-container" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-top: 20px;">
+        
+        <!-- Panel izquierdo - Formulario de carga -->
+        <div class="form-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">
+            <h3 style="margin-bottom: 20px; color: var(--text-primary);">➕ Agregar Nueva Clase</h3>
+            
+            <form id="formClaseHistorica" style="display: flex; flex-direction: column; gap: 15px;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre de la Clase *</label>
+                    <input type="text" id="claseNombre" required 
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Descripción</label>
+                    <textarea id="claseDescripcion" rows="3"
+                              style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Fecha de la Clase *</label>
+                    <input type="date" id="claseFecha" required 
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Hora</label>
+                    <input type="time" id="claseHora" value="10:00"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                </div>
+                
+                <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <h4 style="margin-bottom: 15px;">🔗 Enlaces del Material</h4>
+                    
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">YouTube URL *</label>
+                    <input type="url" id="claseYoutube" required placeholder="https://youtu.be/..."
+                           style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                    
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">PowerPoint/PPT URL *</label>
+                    <input type="url" id="clasePowerpoint" required placeholder="https://docs.google.com/presentation/..."
+                           style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Instructores (separados por coma)</label>
+                    <input type="text" id="claseInstructores" placeholder="Dr. Juan Pérez, Lic. María González"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="claseActiva" checked>
+                        <span>Clase activa (visible para usuarios)</span>
+                    </label>
+                </div>
+                
+                <div class="form-actions" style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button type="submit" class="btn btn-success" style="flex: 2;">💾 Guardar Clase</button>
+                    <button type="button" id="btnLimpiarForm" class="btn btn-secondary" style="flex: 1;">🗑️ Limpiar</button>
+                </div>
+            </form>
+            
+            <div id="formMensaje" style="margin-top: 15px; padding: 10px; border-radius: 5px; display: none;"></div>
+        </div>
+        
+        <!-- Panel derecho - Lista de clases -->
+        <div class="list-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: var(--text-primary);">📋 Clases Existentes</h3>
+                <button id="btnRefrescarClases" class="btn btn-primary btn-small">🔄 Refrescar</button>
+            </div>
+            
+            <div id="clasesListContainer" style="max-height: 500px; overflow-y: auto;">
+                <!-- Las clases se cargan aquí dinámicamente -->
+                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                    Cargando clases...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Estadísticas visuales -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.9em; opacity: 0.9;">Total Clases</div>
+            <div id="statsTotalClases" style="font-size: 2em; font-weight: bold;">0</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #34a853 0%, #2ecc71 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.9em; opacity: 0.9;">Activas</div>
+            <div id="statsClasesActivas" style="font-size: 2em; font-weight: bold;">0</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.9em; opacity: 0.9;">Próximas</div>
+            <div id="statsClasesProximas" style="font-size: 2em; font-weight: bold;">0</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.9em; opacity: 0.9;">Solicitudes</div>
+            <div id="statsTotalSolicitudesHistorico" style="font-size: 2em; font-weight: bold;">0</div>
+        </div>
+    </div>
+</div>
+
     </div>
 
     <script src="/js/auth.js"></script>
     <script src="/js/admin.js"></script>
+    <script src="/js/gestion-clases-visual.js"></script>
 </body>
 </html>
