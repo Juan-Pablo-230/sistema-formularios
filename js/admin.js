@@ -1740,6 +1740,36 @@ generarFilasPlanilla(inscripciones) {
             roleElement.textContent = authSystem.getUserRoleText(user.role);
             roleElement.className = `admin-role-badge role-${user.role}`;
         }
+
+        // Botón del Editor de Clases
+const btnEditorClases = document.getElementById('btnEditorClases');
+if (btnEditorClases) {
+    btnEditorClases.addEventListener('click', () => {
+        if (authSystem.isAdmin()) {
+            // Ocultar todas las secciones
+            document.querySelectorAll('.table-container').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Mostrar el editor
+            document.getElementById('editorClasesContainer').style.display = 'block';
+            
+            // Actualizar botones
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            btnEditorClases.classList.add('active');
+        } else {
+            alert('Solo administradores pueden acceder al editor');
+        }
+    });
+    
+    // Ocultar el editor inicialmente
+    const editorContainer = document.getElementById('editorClasesContainer');
+    if (editorContainer) {
+        editorContainer.style.display = 'none';
+    }
+}
         
         const inscripciones = await this.loadInscripciones();
         const usuarios = await this.loadUsuarios();
