@@ -775,6 +775,255 @@ app.get('/api/material/init', async (req, res) => {
     }
 });
 
+// ==================== RUTAS DE MATERIAL HISTÓRICO ====================
+
+// Obtener todas las clases históricas
+app.get('/api/clases-historicas', async (req, res) => {
+    try {
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        const clases = await db.collection('clases_historicas')
+            .find({ activa: { $ne: false } })
+            .sort({ fechaClase: -1 })
+            .toArray();
+        
+        console.log(`📚 ${clases.length} clases históricas obtenidas`);
+        
+        res.json({ 
+            success: true, 
+            data: clases 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo clases históricas:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Guardar solicitud de material histórico
+app.post('/api/material-historico/solicitudes', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        console.log('📦 POST /material-historico/solicitudes - Headers user-id:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado - Falta user-id en headers' 
+            });
+        }
+        
+        const { claseId, claseNombre, email, youtube, powerpoint } = req.body;
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que el usuario existe
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Verificar si ya solicitó esta clase
+        const solicitudExistente = await db.collection('material_historico').findOne({
+            usuarioId: new ObjectId(userHeader),
+            claseId: claseId
+        });
+        
+        if (solicitudExistente) {
+            // Si ya existe, devolvemos los enlaces pero no creamos duplicado
+            return res.json({ 
+                success: true, 
+                message: 'Material ya solicitado anteriormente',
+                data: solicitudExistente,
+                exists: true
+            });
+        }
+        
+        // Crear nueva solicitud
+        const nuevaSolicitud = {
+            usuarioId: new ObjectId(userHeader),
+            claseId: claseId,
+            claseNombre: claseNombre,
+            email: email,
+            youtube: youtube,
+            powerpoint: powerpoint,
+            fechaSolicitud: new Date()
+        };
+        
+        await db.collection('material_historico').insertOne(nuevaSolicitud);
+        
+        res.json({ 
+            success: true, 
+            message: 'Solicitud de material histórico registrada exitosamente',
+            data: nuevaSolicitud
+        });
+        
+    } catch (error) {
+        console.error('❌ Error registrando solicitud de material histórico:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Obtener solicitudes de material histórico
+app.get('/api/material-historico/solicitudes', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        console.log('📦 GET /material-historico/solicitudes - Headers user-id:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado - Falta user-id en headers' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que el usuario existe
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Si es admin, puede ver todas las solicitudes
+        // Si no es admin, solo puede ver las suyas
+        let matchCriteria = { usuarioId: new ObjectId(userHeader) };
+        
+        if (usuario.role === 'admin') {
+            console.log('👑 Admin: viendo TODAS las solicitudes de material histórico');
+            matchCriteria = {};
+        }
+        
+        // Obtener solicitudes con datos del usuario
+        const solicitudes = await db.collection('material_historico')
+            .aggregate([
+                {
+                    $match: matchCriteria
+                },
+                {
+                    $lookup: {
+                        from: 'usuarios',
+                        localField: 'usuarioId',
+                        foreignField: '_id',
+                        as: 'usuario'
+                    }
+                },
+                { $unwind: '$usuario' },
+                { $sort: { fechaSolicitud: -1 } }
+            ])
+            .toArray();
+        
+        console.log(`📊 Encontradas ${solicitudes.length} solicitudes de material histórico`);
+        
+        res.json({ 
+            success: true, 
+            data: solicitudes 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo solicitudes de material histórico:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Inicializar colección de material histórico
+app.get('/api/material-historico/init', async (req, res) => {
+    try {
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar/crear colección de clases históricas
+        const clasesHistoricasExists = await db.listCollections({ name: 'clases_historicas' }).hasNext();
+        if (!clasesHistoricasExists) {
+            console.log('📝 Creando colección "clases_historicas"...');
+            await db.createCollection('clases_historicas');
+            
+            await db.collection('clases_historicas').createIndex({ fechaClase: -1 });
+            await db.collection('clases_historicas').createIndex({ nombre: 1 });
+            
+            // Insertar algunas clases de ejemplo
+            const clasesEjemplo = [
+                {
+                    nombre: "Telemetría Avanzada",
+                    descripcion: "Clase grabada sobre monitoreo cardíaco y telemetría",
+                    fechaClase: new Date('2026-02-10'),
+                    enlaces: {
+                        youtube: "https://www.youtube.com/watch?v=telemetria2026",
+                        powerpoint: "https://docs.google.com/presentation/d/1-telemetria"
+                    },
+                    activa: true,
+                    fechaCreacion: new Date()
+                },
+                {
+                    nombre: "Rotación de Personal en Salud",
+                    descripcion: "Estrategias y mejores prácticas para rotación de personal",
+                    fechaClase: new Date('2026-02-11'),
+                    enlaces: {
+                        youtube: "https://www.youtube.com/watch?v=rotacion2026",
+                        powerpoint: "https://docs.google.com/presentation/d/1-rotacion"
+                    },
+                    activa: true,
+                    fechaCreacion: new Date()
+                }
+            ];
+            
+            await db.collection('clases_historicas').insertMany(clasesEjemplo);
+            console.log('✅ Clases de ejemplo insertadas');
+        }
+        
+        // Verificar/crear colección de material histórico
+        const materialHistoricoExists = await db.listCollections({ name: 'material_historico' }).hasNext();
+        if (!materialHistoricoExists) {
+            console.log('📝 Creando colección "material_historico"...');
+            await db.createCollection('material_historico');
+            
+            await db.collection('material_historico').createIndex({ usuarioId: 1, claseId: 1 });
+            await db.collection('material_historico').createIndex({ fechaSolicitud: -1 });
+            
+            console.log('✅ Colección "material_historico" creada con índices');
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Sistema de material histórico inicializado',
+            clasesHistoricas: clasesHistoricasExists ? 'existe' : 'creada',
+            materialHistorico: materialHistoricoExists ? 'existe' : 'creada'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error inicializando material histórico:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
 // ==================== RUTAS DE ADMINISTRACIÓN ====================
 app.get('/api/admin/usuarios', async (req, res) => {
     try {

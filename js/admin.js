@@ -106,19 +106,43 @@ async loadSolicitudesMaterialHistorico() {
         if (!user || !user._id) {
             console.error('❌ No hay usuario logueado');
             this.solicitudesMaterialHistoricoData = [];
+            this.showMaterialHistoricoTable([]);
             return [];
         }
         
+        console.log('👤 Usuario actual:', user._id);
+        
+        // Verificar si la ruta existe antes de llamar
         const result = await authSystem.makeRequest('/material-historico/solicitudes', null, 'GET');
         
         this.solicitudesMaterialHistoricoData = result.data || [];
         console.log('✅ Solicitudes de material histórico cargadas:', this.solicitudesMaterialHistoricoData.length);
+        
+        // Actualizar tabla si estamos en la vista correcta
+        if (this.vistaActual === 'materialHistorico') {
+            this.showMaterialHistoricoTable(this.solicitudesMaterialHistoricoData);
+        }
         
         return this.solicitudesMaterialHistoricoData;
         
     } catch (error) {
         console.error('❌ Error cargando solicitudes de material histórico:', error);
         this.solicitudesMaterialHistoricoData = [];
+        
+        // Mostrar mensaje de error en la tabla
+        if (this.vistaActual === 'materialHistorico') {
+            const tbody = document.getElementById('materialHistoricoBody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #ff6b6b; padding: 20px;">
+                            ⚠️ Error al cargar las solicitudes. Asegúrate de que el servidor tenga las rutas de material histórico configuradas.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
         return [];
     }
 }
