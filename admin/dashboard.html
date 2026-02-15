@@ -196,7 +196,7 @@
             </table>
         </div>
 
-        <!-- Sección de Gestión Visual de Clases Históricas -->
+<!-- Sección de Gestión Visual de Clases Históricas -->
 <div class="table-container" id="gestionClasesVisualSection" style="display: none;">
     <h2>📚 Gestión Visual de Clases Históricas</h2>
     
@@ -234,13 +234,27 @@
                 <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
                     <h4 style="margin-bottom: 15px;">🔗 Enlaces del Material</h4>
                     
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">YouTube URL *</label>
-                    <input type="url" id="claseYoutube" required
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">YouTube URL</label>
+                    <input type="url" id="claseYoutube" placeholder="https://youtube.com/..."
                            style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
                     
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">PowerPoint/PPT URL *</label>
-                    <input type="url" id="clasePowerpoint" required
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">PowerPoint/PPT URL</label>
+                    <input type="url" id="clasePowerpoint" placeholder="https://..."
                            style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                    
+                    <!-- ========== NUEVOS CAMPOS DE BIBLIOGRAFÍA ========== -->
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Bibliografía 1 (URL)</label>
+                    <input type="url" id="claseBiblio1" placeholder="https://..."
+                           style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Bibliografía 2 (URL)</label>
+                    <input type="url" id="claseBiblio2" placeholder="https://..."
+                           style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Bibliografía 3 (URL)</label>
+                    <input type="url" id="claseBiblio3" placeholder="https://..."
+                           style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                    <!-- ========== FIN NUEVOS CAMPOS ========== -->
                 </div>
                 
                 <div class="form-group">
@@ -265,7 +279,7 @@
             <div id="formMensaje" style="margin-top: 15px; padding: 10px; border-radius: 5px; display: none;"></div>
         </div>
         
-        <!-- Panel derecho - Lista de clases -->
+        <!-- Panel derecho - Lista de clases (sin cambios) -->
         <div class="list-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="color: var(--text-primary);">📋 Clases Existentes</h3>
@@ -273,7 +287,6 @@
             </div>
             
             <div id="clasesListContainer" style="max-height: 500px; overflow-y: auto;">
-                <!-- Las clases se cargan aquí dinámicamente -->
                 <div style="text-align: center; padding: 20px; color: var(--text-muted);">
                     Cargando clases...
                 </div>
@@ -281,7 +294,7 @@
         </div>
     </div>
     
-    <!-- Estadísticas visuales -->
+    <!-- Estadísticas visuales (sin cambios) -->
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
             <div style="font-size: 0.9em; opacity: 0.9;">Total Clases</div>

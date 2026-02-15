@@ -1,4 +1,4 @@
-console.log('🎯 gestion-clases-visual.js cargado');
+console.log('🎯 gestion-clases-visual.js cargado - Versión con campos dinámicos y bibliografía');
 
 class GestionClasesVisual {
     constructor() {
@@ -91,6 +91,21 @@ class GestionClasesVisual {
             const fecha = clase.fechaClase ? new Date(clase.fechaClase).toLocaleDateString('es-AR') : 'Sin fecha';
             const activa = clase.activa !== false;
             
+            // Generar HTML para los enlaces de bibliografía
+            let bibliografiaHTML = '';
+            if (clase.bibliografia && clase.bibliografia.length > 0) {
+                bibliografiaHTML = '<div style="margin-top: 5px; font-size: 0.8em;">📚 Biblio: ';
+                bibliografiaHTML += clase.bibliografia.map((url, index) => {
+                    // Acortar URL para mostrar
+                    let displayUrl = url;
+                    if (url.length > 30) {
+                        displayUrl = url.substring(0, 27) + '...';
+                    }
+                    return `<a href="${url}" target="_blank" title="${url}" style="color: var(--accent-color);">[${index + 1}]</a>`;
+                }).join(' ');
+                bibliografiaHTML += '</div>';
+            }
+            
             html += `
                 <div class="clase-card" data-id="${clase._id}" style="
                     background: var(--bg-container);
@@ -100,6 +115,7 @@ class GestionClasesVisual {
                     margin-bottom: 10px;
                     cursor: pointer;
                     transition: all 0.3s ease;
+                    position: relative;
                 " onclick="gestionVisual.cargarClaseParaEdicion('${clase._id}')">
                     <div style="display: flex; justify-content: space-between; align-items: start;">
                         <div style="flex: 1;">
@@ -113,16 +129,17 @@ class GestionClasesVisual {
                                 📅 ${fecha}
                             </div>
                             <div style="font-size: 0.85em; color: var(--text-secondary);">
-                                <span title="YouTube">📹 ${this.acortarUrl(clase.enlaces?.youtube)}</span><br>
-                                <span title="PowerPoint">📊 ${this.acortarUrl(clase.enlaces?.powerpoint)}</span>
+                                ${clase.enlaces?.youtube ? '<span title="YouTube">📹 Disponible</span>' : ''}
+                                ${clase.enlaces?.powerpoint ? ' <span title="PowerPoint">📊 Disponible</span>' : ''}
                             </div>
-                            ${clase.instructores ? `
+                            ${bibliografiaHTML}
+                            ${clase.instructores && clase.instructores.length > 0 ? `
                                 <div style="font-size: 0.8em; color: var(--text-muted); margin-top: 5px;">
                                     👥 ${clase.instructores.join(', ')}
                                 </div>
                             ` : ''}
                         </div>
-                        <button class="btn-small btn-danger" onclick="event.stopPropagation(); gestionVisual.eliminarClase('${clase._id}')" style="margin-left: 10px;">
+                        <button class="btn-small btn-danger" onclick="event.stopPropagation(); gestionVisual.eliminarClase('${clase._id}')" style="margin-left: 10px; z-index: 10;">
                             🗑️
                         </button>
                     </div>
@@ -147,25 +164,33 @@ class GestionClasesVisual {
 
         this.claseEditando = clase;
 
-        // Llenar formulario
+        // Llenar formulario con datos existentes
         document.getElementById('claseNombre').value = clase.nombre || '';
         document.getElementById('claseDescripcion').value = clase.descripcion || '';
-        
+
         if (clase.fechaClase) {
             const fecha = new Date(clase.fechaClase);
             document.getElementById('claseFecha').value = fecha.toISOString().split('T')[0];
             document.getElementById('claseHora').value = fecha.toTimeString().slice(0, 5);
         }
-        
+
+        // Enlaces principales
         document.getElementById('claseYoutube').value = clase.enlaces?.youtube || '';
         document.getElementById('clasePowerpoint').value = clase.enlaces?.powerpoint || '';
+
+        // NUEVO: Rellenar campos de bibliografía desde el array
+        const biblioArray = clase.bibliografia || [];
+        document.getElementById('claseBiblio1').value = biblioArray[0] || '';
+        document.getElementById('claseBiblio2').value = biblioArray[1] || '';
+        document.getElementById('claseBiblio3').value = biblioArray[2] || '';
+
         document.getElementById('claseInstructores').value = clase.instructores?.join(', ') || '';
         document.getElementById('claseActiva').checked = clase.activa !== false;
 
-        // Cambiar texto del botón
+        // Cambiar texto del botón para indicar que estamos editando
         const submitBtn = document.querySelector('#formClaseHistorica button[type="submit"]');
         submitBtn.innerHTML = '✏️ Actualizar Clase';
-        
+
         // Scroll al formulario
         document.querySelector('.form-panel').scrollIntoView({ behavior: 'smooth' });
     }
@@ -174,11 +199,15 @@ class GestionClasesVisual {
         document.getElementById('formClaseHistorica').reset();
         document.getElementById('claseFecha').value = '';
         document.getElementById('claseActiva').checked = true;
+        // Asegurarse de limpiar los nuevos campos
+        document.getElementById('claseBiblio1').value = '';
+        document.getElementById('claseBiblio2').value = '';
+        document.getElementById('claseBiblio3').value = '';
         this.claseEditando = null;
-        
+
         const submitBtn = document.querySelector('#formClaseHistorica button[type="submit"]');
         submitBtn.innerHTML = '💾 Guardar Clase';
-        
+
         this.mostrarMensajeForm('Formulario limpiado', 'info');
     }
 
@@ -191,24 +220,20 @@ class GestionClasesVisual {
             const hora = document.getElementById('claseHora').value || '10:00';
             const youtube = document.getElementById('claseYoutube').value;
             const powerpoint = document.getElementById('clasePowerpoint').value;
+            // Recoger nuevos campos de bibliografía
+            const biblio1 = document.getElementById('claseBiblio1').value;
+            const biblio2 = document.getElementById('claseBiblio2').value;
+            const biblio3 = document.getElementById('claseBiblio3').value;
             const instructoresStr = document.getElementById('claseInstructores').value;
             const activa = document.getElementById('claseActiva').checked;
 
-            // Validaciones
+            // Validaciones (solo nombre y fecha son obligatorios)
             if (!nombre) {
                 this.mostrarMensajeForm('El nombre de la clase es obligatorio', 'error');
                 return;
             }
             if (!fecha) {
                 this.mostrarMensajeForm('La fecha de la clase es obligatoria', 'error');
-                return;
-            }
-            if (!youtube) {
-                this.mostrarMensajeForm('El enlace de YouTube es obligatorio', 'error');
-                return;
-            }
-            if (!powerpoint) {
-                this.mostrarMensajeForm('El enlace de PowerPoint es obligatorio', 'error');
                 return;
             }
 
@@ -220,6 +245,12 @@ class GestionClasesVisual {
                 ? instructoresStr.split(',').map(i => i.trim()).filter(i => i)
                 : [];
 
+            // Crear el array de bibliografía, filtrando los vacíos
+            const bibliografia = [];
+            if (biblio1) bibliografia.push(biblio1);
+            if (biblio2) bibliografia.push(biblio2);
+            if (biblio3) bibliografia.push(biblio3);
+
             const claseData = {
                 nombre,
                 descripcion,
@@ -228,6 +259,7 @@ class GestionClasesVisual {
                     youtube,
                     powerpoint
                 },
+                bibliografia: bibliografia,
                 activa,
                 instructores,
                 tags: this.generarTags(nombre)
@@ -266,9 +298,7 @@ class GestionClasesVisual {
             if (result.success) {
                 this.mostrarMensajeForm(mensaje, 'success');
                 this.limpiarFormulario();
-                await this.cargarClases(); // Recargar lista
-                
-                // Si estábamos editando, resetear
+                await this.cargarClases();
                 this.claseEditando = null;
             } else {
                 throw new Error(result.message);
