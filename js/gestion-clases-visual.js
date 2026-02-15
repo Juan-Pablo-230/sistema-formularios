@@ -1,4 +1,4 @@
-console.log('🎯 gestion-clases-visual.js cargado - Versión corregida');
+console.log('🎯 gestion-clases-visual.js cargado - Versión con verificación de admin');
 
 class GestionClasesVisual {
     constructor() {
@@ -14,8 +14,23 @@ class GestionClasesVisual {
         // Esperar a que authSystem esté disponible
         await this.esperarAuthSystem();
         
-        if (!window.authSystem || !window.authSystem.isAdmin()) {
+        // Verificar si el usuario es administrador
+        const user = window.authSystem.getCurrentUser();
+        console.log('👤 Usuario actual:', user);
+        
+        if (!user) {
+            console.log('❌ No hay usuario logueado');
+            alert('Debe iniciar sesión para acceder a esta sección');
+            return;
+        }
+        
+        // Verificar si es admin (role === 'admin')
+        const isAdmin = user.role === 'admin' || user.rol === 'admin';
+        console.log('👑 ¿Es administrador?', isAdmin, 'Rol:', user.role || user.rol);
+        
+        if (!isAdmin) {
             console.log('❌ No es administrador');
+            alert('Solo administradores pueden acceder a esta sección');
             return;
         }
 
@@ -25,13 +40,19 @@ class GestionClasesVisual {
 
     async esperarAuthSystem() {
         return new Promise((resolve) => {
+            let intentos = 0;
             const check = setInterval(() => {
+                intentos++;
                 if (window.authSystem && window.authSystem.getCurrentUser) {
                     clearInterval(check);
+                    console.log('✅ authSystem disponible después de', intentos, 'intentos');
+                    resolve();
+                } else if (intentos > 50) { // 5 segundos máximo
+                    clearInterval(check);
+                    console.log('⚠️ Timeout esperando authSystem');
                     resolve();
                 }
             }, 100);
-            setTimeout(resolve, 3000);
         });
     }
 
@@ -73,10 +94,16 @@ class GestionClasesVisual {
             const user = window.authSystem.getCurrentUser();
             
             if (!user || !user._id) {
-                throw new Error('Usuario no autenticado');
+                console.error('❌ Usuario no autenticado:', user);
+                this.mostrarMensajeLista('Error: Usuario no autenticado', 'error');
+                return;
             }
             
-            const response = await fetch(`${this.apiBaseUrl}/clases-historicas`, {
+            console.log('🔍 Cargando clases para usuario:', user._id, 'Rol:', user.role);
+            
+            const url = `${this.apiBaseUrl}/clases-historicas`;
+            
+            const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -84,11 +111,23 @@ class GestionClasesVisual {
                 }
             });
 
+            console.log('📥 Respuesta status:', response.status);
+
             if (!response.ok) {
-                throw new Error(`Error ${response.status}`);
+                const errorText = await response.text();
+                console.error('❌ Error del servidor:', response.status, errorText);
+                
+                if (response.status === 400 || response.status === 401 || response.status === 403) {
+                    console.log('⚠️ Error de autorización, usando datos de ejemplo');
+                    this.cargarClasesEjemplo();
+                    return;
+                }
+                
+                throw new Error(`Error ${response.status}: ${errorText}`);
             }
             
             const result = await response.json();
+            console.log('📦 Resultado:', result);
             
             if (result.success) {
                 this.clases = result.data || [];
@@ -136,6 +175,7 @@ class GestionClasesVisual {
         ];
         this.actualizarListaClases();
         this.actualizarEstadisticas();
+        this.mostrarMensajeLista('📋 Mostrando datos de ejemplo', 'info');
     }
 
     actualizarListaClases() {
@@ -302,6 +342,8 @@ class GestionClasesVisual {
                 method = 'PUT';
             }
 
+            console.log(`📡 ${method} ${url}`);
+
             response = await fetch(url, {
                 method: method,
                 headers: {
@@ -311,12 +353,16 @@ class GestionClasesVisual {
                 body: JSON.stringify(claseData)
             });
 
+            console.log('📥 Respuesta status:', response.status);
+
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error('❌ Error respuesta:', errorText);
                 throw new Error(`Error ${response.status}: ${errorText}`);
             }
 
             const result = await response.json();
+            console.log('📦 Resultado:', result);
 
             if (result.success) {
                 this.mostrarMensajeForm(
@@ -367,9 +413,14 @@ class GestionClasesVisual {
     }
 
     actualizarEstadisticas() {
-        document.getElementById('statsTotalClases').textContent = this.clases.length;
-        const activas = this.clases.filter(c => c.activa !== false).length;
-        document.getElementById('statsClasesActivas').textContent = activas;
+        const totalEl = document.getElementById('statsTotalClases');
+        if (totalEl) totalEl.textContent = this.clases.length;
+        
+        const activasEl = document.getElementById('statsClasesActivas');
+        if (activasEl) {
+            const activas = this.clases.filter(c => c.activa !== false).length;
+            activasEl.textContent = activas;
+        }
     }
 
     mostrarMensajeForm(mensaje, tipo) {
