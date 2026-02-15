@@ -203,67 +203,72 @@
     <div class="gestion-container" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-top: 20px;">
         
         <!-- Panel izquierdo - Formulario de carga -->
+
         <div class="form-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">
-            <h3 style="margin-bottom: 20px; color: var(--text-primary);">➕ Agregar Nueva Clase</h3>
-            
-            <form id="formClaseHistorica" style="display: flex; flex-direction: column; gap: 15px;">
-                <div class="form-group">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre de la Clase *</label>
-                    <input type="text" id="claseNombre" required 
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-                </div>
-                
-                <div class="form-group">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Descripción</label>
-                    <textarea id="claseDescripcion" rows="3"
-                              style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Fecha de la Clase *</label>
-                    <input type="date" id="claseFecha" required 
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-                </div>
-                
-                <div class="form-group">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Hora</label>
-                    <input type="time" id="claseHora" value="10:00"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-                </div>
-                
-                <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
-                    <h4 style="margin-bottom: 15px;">🔗 Enlaces del Material</h4>
-                    
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">YouTube URL</label>
-                    <input type="url" id="claseYoutube"
-                           style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-                    
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Presentacion</label>
-                    <input type="url" id="clasePowerpoint"
-                           style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-                </div>
-                
-                <div class="form-group">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Instructores (separados por coma)</label>
-                    <input type="text" id="claseInstructores" placeholder="Dr. Juan Pérez, Lic. María González"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-                </div>
-                
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                        <input type="checkbox" id="claseActiva" checked>
-                        <span>Clase activa (visible para usuarios)</span>
-                    </label>
-                </div>
-                
-                <div class="form-actions" style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button type="submit" class="btn btn-success" style="flex: 2;">💾 Guardar Clase</button>
-                    <button type="button" id="btnLimpiarForm" class="btn btn-secondary" style="flex: 1;">🗑️ Limpiar</button>
-                </div>
-            </form>
-            
-            <div id="formMensaje" style="margin-top: 15px; padding: 10px; border-radius: 5px; display: none;"></div>
+    <h3 id="tituloFormularioClase" style="margin-bottom: 20px; color: var(--text-primary);">➕ Agregar Nueva Clase</h3>
+    
+    <form id="formClaseHistorica" style="display: flex; flex-direction: column; gap: 15px;">
+        <input type="hidden" id="claseIdEdit" value="">
+
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre de la Clase *</label>
+            <input type="text" id="claseNombre" required 
+                   style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
         </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Descripción</label>
+            <textarea id="claseDescripcion" rows="3"
+                      style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Fecha de la Clase *</label>
+            <input type="date" id="claseFecha" required 
+                   style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Hora</label>
+            <input type="time" id="claseHora" value="10:00"
+                   style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+        </div>
+        
+        <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 style="margin: 0;">🔗 Enlaces del Material</h4>
+                <button type="button" id="btnAgregarUrl" class="btn btn-primary btn-small">➕ Agregar URL</button>
+            </div>
+            
+            <div id="urlsContainer" style="display: flex; flex-direction: column; gap: 10px;">
+                </div>
+            <small style="color: var(--text-muted); font-style: italic; display: block; margin-top: 5px;">* Las URLs no son obligatorias.</small>
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Instructores (separados por coma)</label>
+            <input type="text" id="claseInstructores" placeholder="Dr. Juan Pérez, Lic. María González"
+                   style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Estado de la Clase *</label>
+            <select id="claseEstado" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                <option value="Activa">Activa</option>
+                <option value="Publicada">Publicada</option>
+                <option value="Cancelada">Cancelada</option>
+            </select>
+            <small style="color: var(--text-muted); font-style: italic; display: block; margin-top: 5px;">* Si la clase no está "Publicada" o no tiene URLs cargadas, no se mostrará a los usuarios.</small>
+        </div>
+        
+        <div class="form-actions" style="display: flex; gap: 10px; margin-top: 10px;">
+            <button type="submit" id="btnSubmitClase" class="btn btn-success" style="flex: 2;">💾 Guardar Clase</button>
+            <button type="button" id="btnLimpiarForm" class="btn btn-secondary" style="flex: 1;">🗑️ Cancelar</button>
+        </div>
+    </form>
+    
+    <div id="formMensaje" style="margin-top: 15px; padding: 10px; border-radius: 5px; display: none;"></div>
+</div>
         
         <!-- Panel derecho - Lista de clases -->
         <div class="list-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">

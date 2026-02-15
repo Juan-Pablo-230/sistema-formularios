@@ -3,7 +3,6 @@ console.log('🎯 gestion-clases-visual.js cargado');
 class GestionClasesVisual {
     constructor() {
         this.clases = [];
-        this.claseEditando = null;
         this.apiBaseUrl = window.location.origin + '/api';
         this.init();
     }
@@ -21,13 +20,13 @@ class GestionClasesVisual {
     }
 
     configurarEventos() {
-        // Formulario de creación
+        // Formulario de creación/edición
         document.getElementById('formClaseHistorica').addEventListener('submit', (e) => {
             e.preventDefault();
             this.guardarClase();
         });
 
-        // Botón limpiar formulario
+        // Botón limpiar formulario / cancelar edición
         document.getElementById('btnLimpiarForm').addEventListener('click', () => {
             this.limpiarFormulario();
         });
@@ -41,7 +40,52 @@ class GestionClasesVisual {
         document.getElementById('btnGestionClasesVisual').addEventListener('click', () => {
             this.mostrarSeccion();
         });
+
+        // Botón para agregar nueva URL dinámica
+        const btnAgregarUrl = document.getElementById('btnAgregarUrl');
+        if (btnAgregarUrl) {
+            btnAgregarUrl.addEventListener('click', () => {
+                this.agregarCampoUrl();
+            });
+        }
     }
+
+    // --- LÓGICA DE URLS DINÁMICAS ---
+    agregarCampoUrl(tipo = 'PDF', link = '') {
+        const container = document.getElementById('urlsContainer');
+        const idUnico = 'url_' + Date.now() + Math.floor(Math.random() * 1000);
+        
+        const entryHtml = `
+            <div class="url-entry" id="${idUnico}" style="display: flex; gap: 10px; align-items: flex-start; animation: fadeIn 0.3s ease;">
+                <select class="url-tipo" style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                    <option value="PDF" ${tipo === 'PDF' ? 'selected' : ''}>PDF</option>
+                    <option value="Presentación" ${tipo === 'Presentación' ? 'selected' : ''}>Presentación</option>
+                    <option value="YouTube" ${tipo === 'YouTube' ? 'selected' : ''}>YouTube</option>
+                    <option value="Drive" ${tipo === 'Drive' ? 'selected' : ''}>Drive</option>
+                    <option value="Otro" ${tipo === 'Otro' ? 'selected' : ''}>Otro</option>
+                </select>
+                <input type="url" class="url-link" value="${link}" placeholder="https://..." style="flex: 2; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                <button type="button" class="btn-small btn-danger" onclick="document.getElementById('${idUnico}').remove()" style="padding: 10px; border: none; border-radius: 5px; cursor: pointer;">
+                    ❌
+                </button>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', entryHtml);
+    }
+
+    obtenerUrlsDelFormulario() {
+        const urls = [];
+        document.querySelectorAll('.url-entry').forEach(entry => {
+            const tipo = entry.querySelector('.url-tipo').value;
+            const link = entry.querySelector('.url-link').value.trim();
+            if (link) { // Solo guardamos si el link no está vacío
+                urls.push({ tipo, link });
+            }
+        });
+        return urls;
+    }
+    // ----------------------------------
 
     async cargarClases() {
         try {
@@ -89,12 +133,34 @@ class GestionClasesVisual {
         let html = '';
         this.clases.forEach(clase => {
             const fecha = clase.fechaClase ? new Date(clase.fechaClase).toLocaleDateString('es-AR') : 'Sin fecha';
-            const activa = clase.activa !== false;
             
+            // Retrocompatibilidad y estado
+            const estado = clase.estado || (clase.activa !== false ? 'Activa' : 'Cancelada');
+            
+            // Armar lista de URLs para validar y renderizar
+            let urlsList = clase.urls || [];
+            if (urlsList.length === 0 && clase.enlaces) { // Compatibilidad con clases viejas
+                if (clase.enlaces.youtube) urlsList.push({tipo: 'YouTube', link: clase.enlaces.youtube});
+                if (clase.enlaces.powerpoint) urlsList.push({tipo: 'Presentación', link: clase.enlaces.powerpoint});
+            }
+
+            // Lógica de visibilidad
+            const esVisible = estado === 'Publicada' && urlsList.length > 0;
+            const iconoOculto = esVisible ? '' : ' <span title="No visible para usuarios">🚫👁️</span>';
+            
+            // Renderizado de colores según estado
+            let colorEstado = '#f9ab00'; // Activa (Amarillo)
+            if (estado === 'Publicada') colorEstado = '#34a853'; // Verde
+            if (estado === 'Cancelada') colorEstado = '#ea4335'; // Rojo
+
+            // Render html de URLs
+            let htmlUrls = urlsList.map(u => `<span title="${u.tipo}">🔗 ${u.tipo}: ${this.acortarUrl(u.link)}</span>`).join('<br>');
+            if(!htmlUrls) htmlUrls = '<em>Sin material cargado</em>';
+
             html += `
                 <div class="clase-card" data-id="${clase._id}" style="
                     background: var(--bg-container);
-                    border: 2px solid ${activa ? 'var(--success-500)' : 'var(--error-500)'};
+                    border: 2px solid ${esVisible ? 'var(--success-500)' : 'var(--border-color)'};
                     border-radius: 8px;
                     padding: 15px;
                     margin-bottom: 10px;
@@ -104,27 +170,31 @@ class GestionClasesVisual {
                     <div style="display: flex; justify-content: space-between; align-items: start;">
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                                <span style="font-weight: bold; color: var(--text-primary);">${clase.nombre}</span>
-                                <span style="font-size: 0.8em; padding: 2px 8px; border-radius: 12px; background: ${activa ? '#34a853' : '#ea4335'}; color: white;">
-                                    ${activa ? 'Activa' : 'Inactiva'}
+                                <span style="font-weight: bold; color: var(--text-primary);">${clase.nombre}${iconoOculto}</span>
+                                <span style="font-size: 0.8em; padding: 2px 8px; border-radius: 12px; background: ${colorEstado}; color: white;">
+                                    ${estado}
                                 </span>
                             </div>
                             <div style="font-size: 0.85em; color: var(--text-muted); margin-bottom: 5px;">
                                 📅 ${fecha}
                             </div>
                             <div style="font-size: 0.85em; color: var(--text-secondary);">
-                                <span title="YouTube">📹 ${this.acortarUrl(clase.enlaces?.youtube)}</span><br>
-                                <span title="PowerPoint">📊 ${this.acortarUrl(clase.enlaces?.powerpoint)}</span>
+                                ${htmlUrls}
                             </div>
-                            ${clase.instructores ? `
+                            ${clase.instructores && clase.instructores.length > 0 ? `
                                 <div style="font-size: 0.8em; color: var(--text-muted); margin-top: 5px;">
                                     👥 ${clase.instructores.join(', ')}
                                 </div>
                             ` : ''}
                         </div>
-                        <button class="btn-small btn-danger" onclick="event.stopPropagation(); gestionVisual.eliminarClase('${clase._id}')" style="margin-left: 10px;">
-                            🗑️
-                        </button>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn-small" style="background-color: var(--accent-color); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor:pointer;" onclick="event.stopPropagation(); gestionVisual.cargarClaseParaEdicion('${clase._id}')" title="Editar Clase">
+                                ✏️
+                            </button>
+                            <button class="btn-small btn-danger" onclick="event.stopPropagation(); gestionVisual.eliminarClase('${clase._id}')" style="border: none; padding: 5px 10px; border-radius: 4px; cursor:pointer;" title="Eliminar Clase">
+                                🗑️
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -135,8 +205,8 @@ class GestionClasesVisual {
 
     acortarUrl(url) {
         if (!url) return 'No disponible';
-        if (url.length > 30) {
-            return url.substring(0, 27) + '...';
+        if (url.length > 25) {
+            return url.substring(0, 22) + '...';
         }
         return url;
     }
@@ -145,26 +215,40 @@ class GestionClasesVisual {
         const clase = this.clases.find(c => c._id === claseId);
         if (!clase) return;
 
-        this.claseEditando = clase;
-
-        // Llenar formulario
+        // Llenar formulario básico
+        document.getElementById('claseIdEdit').value = clase._id;
         document.getElementById('claseNombre').value = clase.nombre || '';
         document.getElementById('claseDescripcion').value = clase.descripcion || '';
         
         if (clase.fechaClase) {
             const fecha = new Date(clase.fechaClase);
             document.getElementById('claseFecha').value = fecha.toISOString().split('T')[0];
-            document.getElementById('claseHora').value = fecha.toTimeString().slice(0, 5);
+            // Asegurar formato HH:mm
+            const horas = String(fecha.getHours()).padStart(2, '0');
+            const mins = String(fecha.getMinutes()).padStart(2, '0');
+            document.getElementById('claseHora').value = `${horas}:${mins}`;
         }
         
-        document.getElementById('claseYoutube').value = clase.enlaces?.youtube || '';
-        document.getElementById('clasePowerpoint').value = clase.enlaces?.powerpoint || '';
         document.getElementById('claseInstructores').value = clase.instructores?.join(', ') || '';
-        document.getElementById('claseActiva').checked = clase.activa !== false;
+        
+        // Manejar estado (retrocompatibilidad)
+        const estado = clase.estado || (clase.activa !== false ? 'Activa' : 'Cancelada');
+        document.getElementById('claseEstado').value = estado;
 
-        // Cambiar texto del botón
-        const submitBtn = document.querySelector('#formClaseHistorica button[type="submit"]');
-        submitBtn.innerHTML = '✏️ Actualizar Clase';
+        // Limpiar contenedor de URLs y cargar las existentes
+        document.getElementById('urlsContainer').innerHTML = '';
+        let urlsList = clase.urls || [];
+        
+        if (urlsList.length === 0 && clase.enlaces) {
+            if (clase.enlaces.youtube) urlsList.push({tipo: 'YouTube', link: clase.enlaces.youtube});
+            if (clase.enlaces.powerpoint) urlsList.push({tipo: 'Presentación', link: clase.enlaces.powerpoint});
+        }
+
+        urlsList.forEach(u => this.agregarCampoUrl(u.tipo, u.link));
+
+        // Cambiar interfaz visual para "Modo Edición"
+        document.getElementById('tituloFormularioClase').innerHTML = '✏️ Editar Clase Histórica';
+        document.getElementById('btnSubmitClase').innerHTML = '💾 Guardar cambios';
         
         // Scroll al formulario
         document.querySelector('.form-panel').scrollIntoView({ behavior: 'smooth' });
@@ -172,27 +256,32 @@ class GestionClasesVisual {
 
     limpiarFormulario() {
         document.getElementById('formClaseHistorica').reset();
-        document.getElementById('claseFecha').value = '';
-        document.getElementById('claseActiva').checked = true;
-        this.claseEditando = null;
+        document.getElementById('claseIdEdit').value = '';
+        document.getElementById('urlsContainer').innerHTML = ''; // Vaciar URLs
+        document.getElementById('claseEstado').value = 'Activa';
         
-        const submitBtn = document.querySelector('#formClaseHistorica button[type="submit"]');
-        submitBtn.innerHTML = '💾 Guardar Clase';
+        // Restaurar interfaz visual para "Modo Creación"
+        document.getElementById('tituloFormularioClase').innerHTML = '➕ Agregar Nueva Clase';
+        document.getElementById('btnSubmitClase').innerHTML = '💾 Guardar Clase';
         
         this.mostrarMensajeForm('Formulario limpiado', 'info');
     }
 
     async guardarClase() {
         try {
-            // Recoger datos del formulario
-            const nombre = document.getElementById('claseNombre').value;
-            const descripcion = document.getElementById('claseDescripcion').value;
+            const editId = document.getElementById('claseIdEdit').value;
+            const esEdicion = editId !== '';
+
+            // Recoger datos
+            const nombre = document.getElementById('claseNombre').value.trim();
+            const descripcion = document.getElementById('claseDescripcion').value.trim();
             const fecha = document.getElementById('claseFecha').value;
             const hora = document.getElementById('claseHora').value || '10:00';
-            const youtube = document.getElementById('claseYoutube').value;
-            const powerpoint = document.getElementById('clasePowerpoint').value;
             const instructoresStr = document.getElementById('claseInstructores').value;
-            const activa = document.getElementById('claseActiva').checked;
+            const estado = document.getElementById('claseEstado').value;
+            
+            // Obtener URLs dinámicas
+            const urls = this.obtenerUrlsDelFormulario();
 
             // Validaciones
             if (!nombre) {
@@ -201,14 +290,6 @@ class GestionClasesVisual {
             }
             if (!fecha) {
                 this.mostrarMensajeForm('La fecha de la clase es obligatoria', 'error');
-                return;
-            }
-            if (!youtube) {
-                this.mostrarMensajeForm('El enlace de YouTube es obligatorio', 'error');
-                return;
-            }
-            if (!powerpoint) {
-                this.mostrarMensajeForm('El enlace de PowerPoint es obligatorio', 'error');
                 return;
             }
 
@@ -220,15 +301,15 @@ class GestionClasesVisual {
                 ? instructoresStr.split(',').map(i => i.trim()).filter(i => i)
                 : [];
 
+            // Objeto de la clase (compatible con nueva lógica)
             const claseData = {
                 nombre,
                 descripcion,
                 fechaClase: fechaClase.toISOString(),
-                enlaces: {
-                    youtube,
-                    powerpoint
-                },
-                activa,
+                estado,          // Nuevo campo "Activa", "Publicada", "Cancelada"
+                urls,            // Nuevo array de objetos [{tipo, link}]
+                enlaces: {},     // Se envía vacío por compatibilidad si la DB es estricta
+                activa: estado !== 'Cancelada', // Retrocompatibilidad
                 instructores,
                 tags: this.generarTags(nombre)
             };
@@ -237,25 +318,19 @@ class GestionClasesVisual {
             let response;
             let mensaje;
 
-            if (this.claseEditando) {
-                // Actualizar clase existente
-                response = await fetch(`${this.apiBaseUrl}/clases-historicas/${this.claseEditando._id}`, {
+            if (esEdicion) {
+                // Actualizar
+                response = await fetch(`${this.apiBaseUrl}/clases-historicas/${editId}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'user-id': user._id
-                    },
+                    headers: { 'Content-Type': 'application/json', 'user-id': user._id },
                     body: JSON.stringify(claseData)
                 });
-                mensaje = '✅ Clase actualizada correctamente';
+                mensaje = '✅ Cambios guardados correctamente';
             } else {
-                // Crear nueva clase
+                // Crear
                 response = await fetch(`${this.apiBaseUrl}/clases-historicas`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'user-id': user._id
-                    },
+                    headers: { 'Content-Type': 'application/json', 'user-id': user._id },
                     body: JSON.stringify(claseData)
                 });
                 mensaje = '✅ Clase creada correctamente';
@@ -265,11 +340,8 @@ class GestionClasesVisual {
 
             if (result.success) {
                 this.mostrarMensajeForm(mensaje, 'success');
-                this.limpiarFormulario();
-                await this.cargarClases(); // Recargar lista
-                
-                // Si estábamos editando, resetear
-                this.claseEditando = null;
+                this.limpiarFormulario(); // Limpia y restaura al modo Creación
+                await this.cargarClases();
             } else {
                 throw new Error(result.message);
             }
@@ -300,7 +372,8 @@ class GestionClasesVisual {
                 this.mostrarMensajeForm('✅ Clase eliminada', 'success');
                 await this.cargarClases();
                 
-                if (this.claseEditando?._id === claseId) {
+                // Si justo estaba editando la clase que borró, limpiar
+                if (document.getElementById('claseIdEdit').value === claseId) {
                     this.limpiarFormulario();
                 }
             } else {
@@ -314,21 +387,18 @@ class GestionClasesVisual {
     }
 
     generarTags(nombre) {
-        // Generar tags automáticos desde el nombre
         const palabras = nombre.toLowerCase().split(' ');
         return palabras.filter(p => p.length > 3);
     }
 
     async actualizarEstadisticas() {
         try {
-            // Total clases
             document.getElementById('statsTotalClases').textContent = this.clases.length;
             
-            // Clases activas
-            const activas = this.clases.filter(c => c.activa !== false).length;
-            document.getElementById('statsClasesActivas').textContent = activas;
+            // Filtro por Publicadas/Activas
+            const publicadas = this.clases.filter(c => c.estado === 'Publicada').length;
+            document.getElementById('statsClasesActivas').textContent = publicadas;
             
-            // Clases próximas (próximos 30 días)
             const hoy = new Date();
             const mesProximo = new Date();
             mesProximo.setDate(mesProximo.getDate() + 30);
@@ -340,12 +410,10 @@ class GestionClasesVisual {
             }).length;
             document.getElementById('statsClasesProximas').textContent = proximas;
             
-            // Total solicitudes (desde el admin system)
             if (window.adminSystem) {
                 document.getElementById('statsTotalSolicitudesHistorico').textContent = 
                     window.adminSystem.solicitudesMaterialHistoricoData?.length || 0;
             }
-            
         } catch (error) {
             console.error('Error actualizando estadísticas:', error);
         }
@@ -373,41 +441,20 @@ class GestionClasesVisual {
 
     mostrarMensajeLista(mensaje, tipo) {
         const container = document.getElementById('clasesListContainer');
-        const colores = {
-            info: '#4285f4',
-            error: '#ea4335'
-        };
-        
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: ${colores[tipo]};">
-                ${mensaje}
-            </div>
-        `;
+        const colores = { info: '#4285f4', error: '#ea4335' };
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: ${colores[tipo]};">${mensaje}</div>`;
     }
 
     mostrarSeccion() {
-        // Ocultar otras secciones
-        document.querySelectorAll('.table-container').forEach(section => {
-            section.style.display = 'none';
-        });
-        
-        // Mostrar esta sección
+        document.querySelectorAll('.table-container').forEach(section => section.style.display = 'none');
         document.getElementById('gestionClasesVisualSection').style.display = 'block';
-        
-        // Actualizar botones
-        document.querySelectorAll('.view-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
+        document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById('btnGestionClasesVisual').classList.add('active');
-        
-        // Recargar datos
         this.cargarClases();
     }
 }
 
-// Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    // Esperar a que authSystem esté listo
     const checkAuth = setInterval(() => {
         if (typeof authSystem !== 'undefined' && authSystem.isLoggedIn()) {
             clearInterval(checkAuth);
