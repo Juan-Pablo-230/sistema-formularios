@@ -1,4 +1,4 @@
-console.log('📚 material-historico.js cargado - Versión con campos dinámicos y formato 24hs');
+console.log('📚 material-historico.js cargado - Versión con filtro por año y mes');
 
 class MaterialHistorico {
     constructor() {
@@ -18,7 +18,7 @@ class MaterialHistorico {
     }
 
     async init() {
-        console.log('🚀 Inicializando sistema de material histórico...');
+        console.log('🚀 Inicializando sistema de material histórico con filtro por año y mes...');
         
         await this.esperarAuthSystem();
         
@@ -71,9 +71,8 @@ class MaterialHistorico {
             const result = await response.json();
             
             if (result.success && result.data) {
-                // SOLO mostrar clases activas al usuario final
                 this.clasesHistoricas = result.data.filter(clase => clase.activa !== false);
-                console.log(`✅ ${this.clasesHistoricas.length} clases activas cargadas`);
+                console.log(`✅ ${this.clasesHistoricas.length} clases históricas cargadas`);
                 
                 this.procesarAnosDisponibles();
                 this.llenarSelectorAnos();
@@ -100,10 +99,6 @@ class MaterialHistorico {
                     youtube: "https://www.youtube.com/watch?v=telemetria2026",
                     powerpoint: "https://docs.google.com/presentation/d/1-telemetria"
                 },
-                bibliografia: [
-                    "https://www.example.com/biblio1",
-                    "https://www.example.com/biblio2"
-                ],
                 activa: true,
                 instructores: ["Dr. Juan Pérez", "Lic. María González"]
             },
@@ -113,7 +108,8 @@ class MaterialHistorico {
                 descripcion: "Estrategias para gestionar la rotación del personal",
                 fechaClase: "2026-02-15T17:00:00Z",
                 enlaces: {
-                    youtube: "https://www.youtube.com/watch?v=rotacion2026"
+                    youtube: "https://www.youtube.com/watch?v=rotacion2026",
+                    powerpoint: "https://docs.google.com/presentation/d/1-rotacion"
                 },
                 activa: true,
                 instructores: ["Lic. Ana López"]
@@ -124,9 +120,10 @@ class MaterialHistorico {
                 descripcion: "Herramientas para reducir el ausentismo laboral",
                 fechaClase: "2025-11-20T13:00:00Z",
                 enlaces: {
+                    youtube: "https://www.youtube.com/watch?v=ausentismo2025",
                     powerpoint: "https://docs.google.com/presentation/d/1-ausentismo"
                 },
-                activa: false,
+                activa: true,
                 instructores: ["Lic. Laura Martínez"]
             },
             {
@@ -138,11 +135,20 @@ class MaterialHistorico {
                     youtube: "https://www.youtube.com/watch?v=stroke2025",
                     powerpoint: "https://docs.google.com/presentation/d/1-stroke"
                 },
-                bibliografia: [
-                    "https://www.example.com/stroke-guia"
-                ],
                 activa: true,
                 instructores: ["Dr. Roberto Sánchez"]
+            },
+            {
+                _id: "clase_005",
+                nombre: "CoPaP - Cuidados Paliativos",
+                descripcion: "Abordaje integral en cuidados paliativos",
+                fechaClase: "2024-08-25T17:00:00Z",
+                enlaces: {
+                    youtube: "https://www.youtube.com/watch?v=copap2024",
+                    powerpoint: "https://docs.google.com/presentation/d/1-copap"
+                },
+                activa: true,
+                instructores: ["Lic. Silvia Vargas"]
             }
         ];
         
@@ -312,7 +318,7 @@ class MaterialHistorico {
             const option = document.createElement('option');
             option.value = clase._id;
             
-            // Formatear fecha para mostrar (CON FORMATO 24 HORAS)
+            // Formatear fecha para mostrar
             let fechaTexto = '';
             if (clase.fechaClase) {
                 const fecha = new Date(clase.fechaClase);
@@ -321,8 +327,7 @@ class MaterialHistorico {
                     month: '2-digit',
                     year: 'numeric',
                     hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false  // 👈 FORMATO 24 HORAS
+                    minute: '2-digit'
                 });
             }
             
@@ -332,7 +337,6 @@ class MaterialHistorico {
             option.dataset.fecha = clase.fechaClase;
             option.dataset.youtube = clase.enlaces?.youtube || '';
             option.dataset.powerpoint = clase.enlaces?.powerpoint || '';
-            option.dataset.bibliografia = clase.bibliografia ? JSON.stringify(clase.bibliografia) : '[]';
             option.dataset.instructores = clase.instructores?.join(', ') || '';
             
             select.appendChild(option);
@@ -379,14 +383,6 @@ class MaterialHistorico {
             return;
         }
 
-        // Parsear bibliografía si existe
-        let bibliografia = [];
-        try {
-            bibliografia = JSON.parse(selectOption.dataset.bibliografia || '[]');
-        } catch (e) {
-            console.error('Error parseando bibliografía:', e);
-        }
-
         const claseData = {
             id: claseId,
             nombre: selectOption.dataset.nombre,
@@ -394,7 +390,6 @@ class MaterialHistorico {
             fecha: selectOption.dataset.fecha,
             youtube: selectOption.dataset.youtube,
             powerpoint: selectOption.dataset.powerpoint,
-            bibliografia: bibliografia,
             instructores: selectOption.dataset.instructores
         };
 
@@ -412,7 +407,7 @@ class MaterialHistorico {
         const claseFecha = document.getElementById('claseFecha');
         const linksContainer = document.getElementById('linksContainer');
         
-        // Formatear fecha para mostrar (CON FORMATO 24 HORAS)
+        // Formatear fecha para mostrar
         let fechaFormateada = '';
         if (claseData.fecha) {
             const fecha = new Date(claseData.fecha);
@@ -422,8 +417,7 @@ class MaterialHistorico {
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit',
-                hour12: false  // 👈 FORMATO 24 HORAS
+                minute: '2-digit'
             });
             // Capitalizar primera letra
             fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
@@ -448,10 +442,8 @@ class MaterialHistorico {
             document.getElementById('claseInfo').appendChild(instructoresElem);
         }
         
-        // Limpiar contenedor de enlaces
         linksContainer.innerHTML = '';
         
-        // Mostrar YouTube si existe
         if (claseData.youtube) {
             linksContainer.innerHTML += `
                 <div class="link-card youtube" onclick="window.open('${claseData.youtube}', '_blank')">
@@ -465,7 +457,6 @@ class MaterialHistorico {
             `;
         }
         
-        // Mostrar PowerPoint si existe
         if (claseData.powerpoint) {
             linksContainer.innerHTML += `
                 <div class="link-card powerpoint" onclick="window.open('${claseData.powerpoint}', '_blank')">
@@ -475,31 +466,6 @@ class MaterialHistorico {
                         <div class="subtitle">Descargar presentación</div>
                         <div class="hover-info">Click para abrir la presentación</div>
                     </a>
-                </div>
-            `;
-        }
-        
-        // Mostrar bibliografía si existe
-        if (claseData.bibliografia && claseData.bibliografia.length > 0) {
-            claseData.bibliografia.forEach((url, index) => {
-                linksContainer.innerHTML += `
-                    <div class="link-card" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);" onclick="window.open('${url}', '_blank')">
-                        <a href="${url}" target="_blank">
-                            <div class="icon">📚</div>
-                            <div class="title">Bibliografía ${index + 1}</div>
-                            <div class="subtitle">Material complementario</div>
-                            <div class="hover-info">Click para abrir</div>
-                        </a>
-                    </div>
-                `;
-            });
-        }
-        
-        // Si no hay ningún enlace, mostrar mensaje
-        if (!claseData.youtube && !claseData.powerpoint && (!claseData.bibliografia || claseData.bibliografia.length === 0)) {
-            linksContainer.innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
-                    📭 No hay material disponible para esta clase
                 </div>
             `;
         }
@@ -537,7 +503,6 @@ class MaterialHistorico {
                 email: user.email,
                 youtube: claseData.youtube,
                 powerpoint: claseData.powerpoint,
-                bibliografia: claseData.bibliografia,
                 fechaClase: claseData.fecha,
                 fechaSolicitud: new Date().toISOString()
             };
@@ -629,14 +594,11 @@ class MaterialHistorico {
                     month: '2-digit',
                     year: 'numeric',
                     hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false  // 👈 FORMATO 24 HORAS
+                    minute: '2-digit'
                 }) : 'Fecha no disponible';
             
             const fechaSolicitud = solicitud.fechaSolicitud ? 
-                new Date(solicitud.fechaSolicitud).toLocaleString('es-AR', {
-                    hour12: false  // 👈 FORMATO 24 HORAS
-                }) : 
+                new Date(solicitud.fechaSolicitud).toLocaleString('es-AR') : 
                 'Fecha no disponible';
             
             const materialHTML = this.generarMaterialHTML(solicitud);
@@ -663,14 +625,8 @@ class MaterialHistorico {
             enlaces.push(`<a href="${solicitud.powerpoint}" target="_blank" title="Ver presentación">📊 PPT</a>`);
         }
         
-        if (solicitud.bibliografia && solicitud.bibliografia.length > 0) {
-            solicitud.bibliografia.forEach((url, index) => {
-                enlaces.push(`<a href="${url}" target="_blank" title="Bibliografía ${index + 1}">📚 Biblio ${index + 1}</a>`);
-            });
-        }
-        
         if (enlaces.length === 0) {
-            return '<span style="color: #666;">Material no disponible</span>';
+            return '<span style="color: #666;">Material disponible</span>';
         }
         
         return enlaces.join(' | ');

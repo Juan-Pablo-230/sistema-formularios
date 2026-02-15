@@ -1,4 +1,4 @@
-console.log('🎯 gestion-clases-visual.js cargado - Versión con verificación de admin');
+console.log('🎯 gestion-clases-visual.js cargado');
 
 class GestionClasesVisual {
     constructor() {
@@ -11,25 +11,7 @@ class GestionClasesVisual {
     async init() {
         console.log('🚀 Inicializando gestión visual de clases...');
         
-        // Esperar a que authSystem esté disponible
-        await this.esperarAuthSystem();
-        
-        // Verificar si el usuario es administrador
-        const user = window.authSystem.getCurrentUser();
-        console.log('👤 Usuario actual:', user);
-        
-        if (!user) {
-            console.log('❌ No hay usuario logueado');
-            alert('Debe iniciar sesión para acceder a esta sección');
-            return;
-        }
-        
-        // Verificar si es admin (role === 'admin')
-        const isAdmin = user.role === 'admin' || user.rol === 'admin';
-        console.log('👑 ¿Es administrador?', isAdmin, 'Rol:', user.role || user.rol);
-        
-        if (!isAdmin) {
-            console.log('❌ No es administrador');
+        if (!authSystem.isAdmin()) {
             alert('Solo administradores pueden acceder a esta sección');
             return;
         }
@@ -38,96 +20,41 @@ class GestionClasesVisual {
         await this.cargarClases();
     }
 
-    async esperarAuthSystem() {
-        return new Promise((resolve) => {
-            let intentos = 0;
-            const check = setInterval(() => {
-                intentos++;
-                if (window.authSystem && window.authSystem.getCurrentUser) {
-                    clearInterval(check);
-                    console.log('✅ authSystem disponible después de', intentos, 'intentos');
-                    resolve();
-                } else if (intentos > 50) { // 5 segundos máximo
-                    clearInterval(check);
-                    console.log('⚠️ Timeout esperando authSystem');
-                    resolve();
-                }
-            }, 100);
-        });
-    }
-
     configurarEventos() {
-        const form = document.getElementById('formClaseHistorica');
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.guardarClase();
-            });
-        }
+        // Formulario de creación
+        document.getElementById('formClaseHistorica').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.guardarClase();
+        });
 
-        const limpiarBtn = document.getElementById('btnLimpiarForm');
-        if (limpiarBtn) {
-            limpiarBtn.addEventListener('click', () => {
-                this.limpiarFormulario();
-            });
-        }
+        // Botón limpiar formulario
+        document.getElementById('btnLimpiarForm').addEventListener('click', () => {
+            this.limpiarFormulario();
+        });
 
-        const refrescarBtn = document.getElementById('btnRefrescarClases');
-        if (refrescarBtn) {
-            refrescarBtn.addEventListener('click', () => {
-                this.cargarClases();
-            });
-        }
+        // Botón refrescar
+        document.getElementById('btnRefrescarClases').addEventListener('click', () => {
+            this.cargarClases();
+        });
 
-        const navBtn = document.getElementById('btnGestionClasesVisual');
-        if (navBtn) {
-            navBtn.addEventListener('click', () => {
-                this.mostrarSeccion();
-            });
-        }
+        // Botón en navegación principal
+        document.getElementById('btnGestionClasesVisual').addEventListener('click', () => {
+            this.mostrarSeccion();
+        });
     }
 
     async cargarClases() {
         try {
             this.mostrarMensajeLista('Cargando clases...', 'info');
             
-            const user = window.authSystem.getCurrentUser();
-            
-            if (!user || !user._id) {
-                console.error('❌ Usuario no autenticado:', user);
-                this.mostrarMensajeLista('Error: Usuario no autenticado', 'error');
-                return;
-            }
-            
-            console.log('🔍 Cargando clases para usuario:', user._id, 'Rol:', user.role);
-            
-            const url = `${this.apiBaseUrl}/clases-historicas`;
-            
-            const response = await fetch(url, {
-                method: 'GET',
+            const user = authSystem.getCurrentUser();
+            const response = await fetch(`${this.apiBaseUrl}/clases-historicas`, {
                 headers: {
-                    'Content-Type': 'application/json',
                     'user-id': user._id
                 }
             });
 
-            console.log('📥 Respuesta status:', response.status);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Error del servidor:', response.status, errorText);
-                
-                if (response.status === 400 || response.status === 401 || response.status === 403) {
-                    console.log('⚠️ Error de autorización, usando datos de ejemplo');
-                    this.cargarClasesEjemplo();
-                    return;
-                }
-                
-                throw new Error(`Error ${response.status}: ${errorText}`);
-            }
-            
             const result = await response.json();
-            console.log('📦 Resultado:', result);
             
             if (result.success) {
                 this.clases = result.data || [];
@@ -135,62 +62,28 @@ class GestionClasesVisual {
                 this.actualizarEstadisticas();
                 console.log(`✅ ${this.clases.length} clases cargadas`);
             } else {
-                throw new Error(result.message || 'Error al cargar clases');
+                throw new Error(result.message);
             }
             
         } catch (error) {
             console.error('❌ Error cargando clases:', error);
-            this.mostrarMensajeLista('Error al cargar clases. Usando datos de ejemplo.', 'info');
-            this.cargarClasesEjemplo();
+            this.mostrarMensajeLista('Error al cargar clases', 'error');
         }
-    }
-
-    cargarClasesEjemplo() {
-        this.clases = [
-            {
-                _id: "ejemplo_1",
-                nombre: "Clase de ejemplo 1",
-                descripcion: "Esta es una clase de ejemplo para pruebas",
-                fechaClase: new Date().toISOString(),
-                enlaces: {
-                    youtube: "https://youtube.com/ejemplo1",
-                    powerpoint: "https://docs.google.com/ejemplo1"
-                },
-                bibliografia: ["https://ejemplo.com/biblio1"],
-                activa: true,
-                instructores: ["Dr. Ejemplo"]
-            },
-            {
-                _id: "ejemplo_2",
-                nombre: "Clase de ejemplo 2",
-                descripcion: "Otra clase de ejemplo",
-                fechaClase: new Date(Date.now() - 86400000).toISOString(),
-                enlaces: {
-                    youtube: "https://youtube.com/ejemplo2"
-                },
-                bibliografia: [],
-                activa: true,
-                instructores: ["Lic. Prueba"]
-            }
-        ];
-        this.actualizarListaClases();
-        this.actualizarEstadisticas();
-        this.mostrarMensajeLista('📋 Mostrando datos de ejemplo', 'info');
     }
 
     actualizarListaClases() {
         const container = document.getElementById('clasesListContainer');
-        if (!container) return;
         
         if (this.clases.length === 0) {
             container.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #666;">
+                <div style="text-align: center; padding: 40px; color: var(--text-muted);">
                     📭 No hay clases históricas cargadas
                 </div>
             `;
             return;
         }
 
+        // Ordenar por fecha (más reciente primero)
         this.clases.sort((a, b) => new Date(b.fechaClase) - new Date(a.fechaClase));
 
         let html = '';
@@ -200,32 +93,38 @@ class GestionClasesVisual {
             
             html += `
                 <div class="clase-card" data-id="${clase._id}" style="
-                    background: #fff;
-                    border: 2px solid ${activa ? '#34a853' : '#ea4335'};
+                    background: var(--bg-container);
+                    border: 2px solid ${activa ? 'var(--success-500)' : 'var(--error-500)'};
                     border-radius: 8px;
                     padding: 15px;
                     margin-bottom: 10px;
-                ">
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                " onclick="gestionVisual.cargarClaseParaEdicion('${clase._id}')">
                     <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <div style="flex: 1; cursor: pointer;" onclick="window.gestionVisual.cargarClaseParaEdicion('${clase._id}')">
+                        <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                                <span style="font-weight: bold;">${clase.nombre}</span>
+                                <span style="font-weight: bold; color: var(--text-primary);">${clase.nombre}</span>
                                 <span style="font-size: 0.8em; padding: 2px 8px; border-radius: 12px; background: ${activa ? '#34a853' : '#ea4335'}; color: white;">
                                     ${activa ? 'Activa' : 'Inactiva'}
                                 </span>
                             </div>
-                            <div style="font-size: 0.85em; color: #666;">📅 ${fecha}</div>
+                            <div style="font-size: 0.85em; color: var(--text-muted); margin-bottom: 5px;">
+                                📅 ${fecha}
+                            </div>
+                            <div style="font-size: 0.85em; color: var(--text-secondary);">
+                                <span title="YouTube">📹 ${this.acortarUrl(clase.enlaces?.youtube)}</span><br>
+                                <span title="PowerPoint">📊 ${this.acortarUrl(clase.enlaces?.powerpoint)}</span>
+                            </div>
+                            ${clase.instructores ? `
+                                <div style="font-size: 0.8em; color: var(--text-muted); margin-top: 5px;">
+                                    👥 ${clase.instructores.join(', ')}
+                                </div>
+                            ` : ''}
                         </div>
-                        <div style="display: flex; gap: 5px;">
-                            <button onclick="event.stopPropagation(); window.gestionVisual.cargarClaseParaEdicion('${clase._id}')" 
-                                    style="background: #4285f4; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer;">
-                                ✏️
-                            </button>
-                            <button onclick="event.stopPropagation(); window.gestionVisual.eliminarClase('${clase._id}')" 
-                                    style="background: #ea4335; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer;">
-                                🗑️
-                            </button>
-                        </div>
+                        <button class="btn-small btn-danger" onclick="event.stopPropagation(); gestionVisual.eliminarClase('${clase._id}')" style="margin-left: 10px;">
+                            🗑️
+                        </button>
                     </div>
                 </div>
             `;
@@ -234,63 +133,68 @@ class GestionClasesVisual {
         container.innerHTML = html;
     }
 
+    acortarUrl(url) {
+        if (!url) return 'No disponible';
+        if (url.length > 30) {
+            return url.substring(0, 27) + '...';
+        }
+        return url;
+    }
+
     cargarClaseParaEdicion(claseId) {
         const clase = this.clases.find(c => c._id === claseId);
         if (!clase) return;
 
         this.claseEditando = clase;
 
+        // Llenar formulario
         document.getElementById('claseNombre').value = clase.nombre || '';
         document.getElementById('claseDescripcion').value = clase.descripcion || '';
-
+        
         if (clase.fechaClase) {
             const fecha = new Date(clase.fechaClase);
             document.getElementById('claseFecha').value = fecha.toISOString().split('T')[0];
             document.getElementById('claseHora').value = fecha.toTimeString().slice(0, 5);
         }
-
+        
         document.getElementById('claseYoutube').value = clase.enlaces?.youtube || '';
         document.getElementById('clasePowerpoint').value = clase.enlaces?.powerpoint || '';
-
-        const biblioArray = clase.bibliografia || [];
-        document.getElementById('claseBiblio1').value = biblioArray[0] || '';
-        document.getElementById('claseBiblio2').value = biblioArray[1] || '';
-        document.getElementById('claseBiblio3').value = biblioArray[2] || '';
-
         document.getElementById('claseInstructores').value = clase.instructores?.join(', ') || '';
         document.getElementById('claseActiva').checked = clase.activa !== false;
 
+        // Cambiar texto del botón
         const submitBtn = document.querySelector('#formClaseHistorica button[type="submit"]');
-        if (submitBtn) submitBtn.innerHTML = '✏️ Actualizar Clase';
+        submitBtn.innerHTML = '✏️ Actualizar Clase';
+        
+        // Scroll al formulario
+        document.querySelector('.form-panel').scrollIntoView({ behavior: 'smooth' });
     }
 
     limpiarFormulario() {
         document.getElementById('formClaseHistorica').reset();
         document.getElementById('claseFecha').value = '';
         document.getElementById('claseActiva').checked = true;
-        document.getElementById('claseBiblio1').value = '';
-        document.getElementById('claseBiblio2').value = '';
-        document.getElementById('claseBiblio3').value = '';
         this.claseEditando = null;
-
+        
         const submitBtn = document.querySelector('#formClaseHistorica button[type="submit"]');
-        if (submitBtn) submitBtn.innerHTML = '💾 Guardar Clase';
+        submitBtn.innerHTML = '💾 Guardar Clase';
+        
+        this.mostrarMensajeForm('Formulario limpiado', 'info');
     }
 
     async guardarClase() {
         try {
+            // Recoger datos del formulario
             const nombre = document.getElementById('claseNombre').value;
             const descripcion = document.getElementById('claseDescripcion').value;
             const fecha = document.getElementById('claseFecha').value;
             const hora = document.getElementById('claseHora').value || '10:00';
             const youtube = document.getElementById('claseYoutube').value;
             const powerpoint = document.getElementById('clasePowerpoint').value;
-            const biblio1 = document.getElementById('claseBiblio1').value;
-            const biblio2 = document.getElementById('claseBiblio2').value;
-            const biblio3 = document.getElementById('claseBiblio3').value;
             const instructoresStr = document.getElementById('claseInstructores').value;
             const activa = document.getElementById('claseActiva').checked;
 
+            // Validaciones
             if (!nombre) {
                 this.mostrarMensajeForm('El nombre de la clase es obligatorio', 'error');
                 return;
@@ -299,94 +203,90 @@ class GestionClasesVisual {
                 this.mostrarMensajeForm('La fecha de la clase es obligatoria', 'error');
                 return;
             }
+            if (!youtube) {
+                this.mostrarMensajeForm('El enlace de YouTube es obligatorio', 'error');
+                return;
+            }
+            if (!powerpoint) {
+                this.mostrarMensajeForm('El enlace de PowerPoint es obligatorio', 'error');
+                return;
+            }
 
+            // Crear objeto fecha
             const fechaClase = new Date(`${fecha}T${hora}:00`);
 
+            // Procesar instructores
             const instructores = instructoresStr
                 ? instructoresStr.split(',').map(i => i.trim()).filter(i => i)
                 : [];
 
-            const bibliografia = [];
-            if (biblio1 && biblio1.trim() !== '') bibliografia.push(biblio1.trim());
-            if (biblio2 && biblio2.trim() !== '') bibliografia.push(biblio2.trim());
-            if (biblio3 && biblio3.trim() !== '') bibliografia.push(biblio3.trim());
-
             const claseData = {
-                nombre: nombre,
-                descripcion: descripcion || '',
+                nombre,
+                descripcion,
                 fechaClase: fechaClase.toISOString(),
                 enlaces: {
-                    youtube: youtube || '',
-                    powerpoint: powerpoint || ''
+                    youtube,
+                    powerpoint
                 },
-                bibliografia: bibliografia,
-                activa: activa,
-                instructores: instructores
+                activa,
+                instructores,
+                tags: this.generarTags(nombre)
             };
 
-            console.log('📤 Enviando:', claseData);
-
-            const user = window.authSystem.getCurrentUser();
-            
-            if (!user || !user._id) {
-                this.mostrarMensajeForm('Error: Usuario no autenticado', 'error');
-                return;
-            }
-
+            const user = authSystem.getCurrentUser();
             let response;
-            let url = `${this.apiBaseUrl}/clases-historicas`;
-            let method = 'POST';
+            let mensaje;
 
             if (this.claseEditando) {
-                url = `${this.apiBaseUrl}/clases-historicas/${this.claseEditando._id}`;
-                method = 'PUT';
-            }
-
-            console.log(`📡 ${method} ${url}`);
-
-            response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'user-id': user._id
-                },
-                body: JSON.stringify(claseData)
-            });
-
-            console.log('📥 Respuesta status:', response.status);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Error respuesta:', errorText);
-                throw new Error(`Error ${response.status}: ${errorText}`);
+                // Actualizar clase existente
+                response = await fetch(`${this.apiBaseUrl}/clases-historicas/${this.claseEditando._id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': user._id
+                    },
+                    body: JSON.stringify(claseData)
+                });
+                mensaje = '✅ Clase actualizada correctamente';
+            } else {
+                // Crear nueva clase
+                response = await fetch(`${this.apiBaseUrl}/clases-historicas`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': user._id
+                    },
+                    body: JSON.stringify(claseData)
+                });
+                mensaje = '✅ Clase creada correctamente';
             }
 
             const result = await response.json();
-            console.log('📦 Resultado:', result);
 
             if (result.success) {
-                this.mostrarMensajeForm(
-                    this.claseEditando ? '✅ Clase actualizada' : '✅ Clase creada', 
-                    'success'
-                );
+                this.mostrarMensajeForm(mensaje, 'success');
                 this.limpiarFormulario();
-                await this.cargarClases();
+                await this.cargarClases(); // Recargar lista
+                
+                // Si estábamos editando, resetear
                 this.claseEditando = null;
             } else {
-                throw new Error(result.message || 'Error desconocido');
+                throw new Error(result.message);
             }
 
         } catch (error) {
-            console.error('❌ Error:', error);
+            console.error('❌ Error guardando clase:', error);
             this.mostrarMensajeForm('Error: ' + error.message, 'error');
         }
     }
 
     async eliminarClase(claseId) {
-        if (!confirm('¿Estás seguro de eliminar esta clase?')) return;
+        if (!confirm('¿Estás seguro de eliminar esta clase? Esta acción no se puede deshacer.')) {
+            return;
+        }
 
         try {
-            const user = window.authSystem.getCurrentUser();
+            const user = authSystem.getCurrentUser();
             const response = await fetch(`${this.apiBaseUrl}/clases-historicas/${claseId}`, {
                 method: 'DELETE',
                 headers: {
@@ -399,6 +299,7 @@ class GestionClasesVisual {
             if (result.success) {
                 this.mostrarMensajeForm('✅ Clase eliminada', 'success');
                 await this.cargarClases();
+                
                 if (this.claseEditando?._id === claseId) {
                     this.limpiarFormulario();
                 }
@@ -407,26 +308,51 @@ class GestionClasesVisual {
             }
 
         } catch (error) {
-            console.error('❌ Error:', error);
-            this.mostrarMensajeForm('Error al eliminar', 'error');
+            console.error('❌ Error eliminando clase:', error);
+            this.mostrarMensajeForm('Error al eliminar: ' + error.message, 'error');
         }
     }
 
-    actualizarEstadisticas() {
-        const totalEl = document.getElementById('statsTotalClases');
-        if (totalEl) totalEl.textContent = this.clases.length;
-        
-        const activasEl = document.getElementById('statsClasesActivas');
-        if (activasEl) {
+    generarTags(nombre) {
+        // Generar tags automáticos desde el nombre
+        const palabras = nombre.toLowerCase().split(' ');
+        return palabras.filter(p => p.length > 3);
+    }
+
+    async actualizarEstadisticas() {
+        try {
+            // Total clases
+            document.getElementById('statsTotalClases').textContent = this.clases.length;
+            
+            // Clases activas
             const activas = this.clases.filter(c => c.activa !== false).length;
-            activasEl.textContent = activas;
+            document.getElementById('statsClasesActivas').textContent = activas;
+            
+            // Clases próximas (próximos 30 días)
+            const hoy = new Date();
+            const mesProximo = new Date();
+            mesProximo.setDate(mesProximo.getDate() + 30);
+            
+            const proximas = this.clases.filter(c => {
+                if (!c.fechaClase) return false;
+                const fechaClase = new Date(c.fechaClase);
+                return fechaClase >= hoy && fechaClase <= mesProximo;
+            }).length;
+            document.getElementById('statsClasesProximas').textContent = proximas;
+            
+            // Total solicitudes (desde el admin system)
+            if (window.adminSystem) {
+                document.getElementById('statsTotalSolicitudesHistorico').textContent = 
+                    window.adminSystem.solicitudesMaterialHistoricoData?.length || 0;
+            }
+            
+        } catch (error) {
+            console.error('Error actualizando estadísticas:', error);
         }
     }
 
     mostrarMensajeForm(mensaje, tipo) {
         const msgDiv = document.getElementById('formMensaje');
-        if (!msgDiv) return;
-        
         msgDiv.style.display = 'block';
         msgDiv.textContent = mensaje;
         
@@ -447,8 +373,6 @@ class GestionClasesVisual {
 
     mostrarMensajeLista(mensaje, tipo) {
         const container = document.getElementById('clasesListContainer');
-        if (!container) return;
-        
         const colores = {
             info: '#4285f4',
             error: '#ea4335'
@@ -462,26 +386,32 @@ class GestionClasesVisual {
     }
 
     mostrarSeccion() {
+        // Ocultar otras secciones
         document.querySelectorAll('.table-container').forEach(section => {
             section.style.display = 'none';
         });
         
-        const section = document.getElementById('gestionClasesVisualSection');
-        if (section) section.style.display = 'block';
+        // Mostrar esta sección
+        document.getElementById('gestionClasesVisualSection').style.display = 'block';
         
+        // Actualizar botones
         document.querySelectorAll('.view-btn').forEach(btn => {
             btn.classList.remove('active');
         });
+        document.getElementById('btnGestionClasesVisual').classList.add('active');
         
-        const btn = document.getElementById('btnGestionClasesVisual');
-        if (btn) btn.classList.add('active');
-        
+        // Recargar datos
         this.cargarClases();
     }
 }
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('📄 Inicializando GestionClasesVisual...');
-    window.gestionVisual = new GestionClasesVisual();
+    // Esperar a que authSystem esté listo
+    const checkAuth = setInterval(() => {
+        if (typeof authSystem !== 'undefined' && authSystem.isLoggedIn()) {
+            clearInterval(checkAuth);
+            window.gestionVisual = new GestionClasesVisual();
+        }
+    }, 100);
 });
