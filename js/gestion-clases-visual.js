@@ -1,4 +1,4 @@
-console.log('🎯 gestion-clases-visual.js cargado con edición y URLs dinámicas');
+console.log('🎯 gestion-clases-visual.js cargado - Versión Instructores + Edición');
 
 class GestionClasesVisual {
     constructor() {
@@ -26,7 +26,6 @@ class GestionClasesVisual {
         document.getElementById('btnRefrescarClases').addEventListener('click', () => this.cargarClases());
         document.getElementById('btnGestionClasesVisual').addEventListener('click', () => this.mostrarSeccion());
         
-        // Evento para agregar URL dinámica
         const btnAgregarUrl = document.getElementById('btnAgregarUrl');
         if (btnAgregarUrl) {
             btnAgregarUrl.onclick = () => this.agregarCampoUrl();
@@ -63,7 +62,7 @@ class GestionClasesVisual {
         return urls;
     }
 
-    // --- CARGAR Y RENDERIZAR ---
+    // --- CARGA Y RENDER ---
     async cargarClases() {
         try {
             this.mostrarMensajeLista('Cargando clases...', 'info');
@@ -120,13 +119,15 @@ class GestionClasesVisual {
         document.getElementById('claseIdEdit').value = clase._id;
         document.getElementById('claseNombre').value = clase.nombre;
         document.getElementById('claseDescripcion').value = clase.descripcion || '';
+        document.getElementById('claseInstructores').value = clase.instructores?.join(', ') || '';
         document.getElementById('claseEstado').value = clase.estado || (clase.activa ? 'Activa' : 'Cancelada');
         
         if(clase.fechaClase) {
-            document.getElementById('claseFecha').value = clase.fechaClase.split('T')[0];
+            const d = new Date(clase.fechaClase);
+            document.getElementById('claseFecha').value = d.toISOString().split('T')[0];
+            document.getElementById('claseHora').value = d.toTimeString().split(' ')[0].substring(0,5);
         }
 
-        // Cargar URLs
         const container = document.getElementById('urlsContainer');
         container.innerHTML = '';
         if (clase.urls && clase.urls.length > 0) {
@@ -149,20 +150,22 @@ class GestionClasesVisual {
         document.getElementById('btnSubmitClase').innerText = '💾 Guardar Clase';
     }
 
-    // --- PERSISTENCIA (SOLUCIÓN ERROR 400) ---
+    // --- PERSISTENCIA ---
     async guardarClase() {
         try {
             const editId = document.getElementById('claseIdEdit').value;
             const urls = this.obtenerUrlsDelFormulario();
             const estado = document.getElementById('claseEstado').value;
+            const instructoresStr = document.getElementById('claseInstructores').value;
 
             const claseData = {
                 nombre: document.getElementById('claseNombre').value,
                 descripcion: document.getElementById('claseDescripcion').value,
-                fechaClase: document.getElementById('claseFecha').value,
+                fechaClase: `${document.getElementById('claseFecha').value}T${document.getElementById('claseHora').value || '10:00'}:00`,
+                instructores: instructoresStr.split(',').map(i => i.trim()).filter(i => i !== ""),
                 estado: estado,
-                urls: urls, // Formato nuevo
-                enlaces: { // Formato viejo para el servidor
+                urls: urls,
+                enlaces: { // Solución Error 400: enviamos strings para que el backend no falle
                     youtube: urls.find(u => u.tipo === 'YouTube')?.link || "",
                     powerpoint: urls.find(u => u.tipo !== 'YouTube')?.link || ""
                 },
