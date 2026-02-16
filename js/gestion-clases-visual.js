@@ -12,33 +12,27 @@ class GestionClasesVisual {
     }
 
     configurarEventos() {
-        document.getElementById('formClaseHistorica').onsubmit = (e) => {
+        const form = document.getElementById('formClaseHistorica');
+        form.onsubmit = (e) => {
             e.preventDefault();
             this.guardarClase();
         };
-
         document.getElementById('btnLimpiarForm').onclick = () => this.limpiarFormulario();
         document.getElementById('btnAgregarUrl').onclick = () => this.agregarCampoUrl();
         document.getElementById('btnRefrescarClases').onclick = () => this.cargarClases();
-        
-        const navBtn = document.getElementById('btnGestionClasesVisual');
-        if (navBtn) navBtn.onclick = () => this.mostrarSeccion();
+        document.getElementById('btnGestionClasesVisual').onclick = () => this.mostrarSeccion();
     }
 
     agregarCampoUrl(tipo = 'PDF', link = '') {
         const container = document.getElementById('urlsContainer');
         const id = 'url_' + Date.now();
         const div = document.createElement('div');
+        div.className = 'url-entry';
         div.id = id;
-        div.style = 'display: flex; gap: 5px;';
         div.innerHTML = `
-            <select class="url-tipo" style="width: 30%; background: var(--bg-container); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px;">
-                <option value="PDF" ${tipo === 'PDF' ? 'selected' : ''}>PDF</option>
-                <option value="YouTube" ${tipo === 'YouTube' ? 'selected' : ''}>YouTube</option>
-                <option value="Presentación" ${tipo === 'Presentación' ? 'selected' : ''}>PPT</option>
-            </select>
-            <input type="text" class="url-link" value="${link}" placeholder="Enlace..." style="flex: 1; background: var(--bg-container); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 5px;">
-            <button type="button" onclick="document.getElementById('${id}').remove()" style="background:none; border:none; cursor:pointer;">❌</button>
+            <select class="url-tipo" style="width:80px;"><option value="PDF" ${tipo==='PDF'?'selected':''}>PDF</option><option value="YouTube" ${tipo==='YouTube'?'selected':''}>YT</option></select>
+            <input type="text" class="url-link" value="${link}" placeholder="https://..." style="flex:1;">
+            <button type="button" onclick="document.getElementById('${id}').remove()">❌</button>
         `;
         container.appendChild(div);
     }
@@ -51,25 +45,29 @@ class GestionClasesVisual {
             if (result.success) {
                 this.clases = result.data || [];
                 this.renderizarLista();
+                this.actualizarContadores();
             }
-        } catch (e) { console.error("Error cargando clases", e); }
+        } catch (e) { console.error(e); }
+    }
+
+    actualizarContadores() {
+        const total = this.clases.length;
+        const domTotal = document.getElementById('statsTotalClases');
+        if (domTotal) domTotal.textContent = total;
     }
 
     renderizarLista() {
         const container = document.getElementById('clasesListContainer');
-        container.innerHTML = this.clases.sort((a,b) => new Date(b.fechaClase) - new Date(a.fechaClase)).map(c => {
+        container.innerHTML = this.clases.map(c => {
             const estado = c.estado || 'Activa';
-            const esCancelada = estado === 'Cancelada';
+            const color = estado === 'Cancelada' ? '#ea4335' : (estado === 'Publicada' ? '#34a853' : '#f9ab00');
             return `
-                <div style="background: var(--bg-container); padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${esCancelada ? '#ea4335' : '#4285f4'}; opacity: ${esCancelada ? '0.7' : '1'}">
+                <div class="clase-card-admin" style="border-left: 5px solid ${color}">
                     <div>
-                        <strong style="color: var(--text-primary)">${c.nombre}</strong>
-                        <div style="font-size: 0.8em; color: var(--text-muted);">
-                            ${new Date(c.fechaClase).toLocaleDateString()} | 
-                            <span style="color: ${esCancelada ? '#ea4335' : '#34a853'}">${estado}</span>
-                        </div>
+                        <strong>${c.nombre}</strong><br>
+                        <small>${new Date(c.fechaClase).toLocaleDateString()} - <span style="color:${color}">${estado}</span></small>
                     </div>
-                    <div style="display: flex; gap: 5px;">
+                    <div>
                         <button class="btn-small" onclick="gestionVisual.cargarParaEditar('${c._id}')">✏️</button>
                         <button class="btn-small btn-danger" onclick="gestionVisual.eliminar('${c._id}')">🗑️</button>
                     </div>
@@ -85,87 +83,85 @@ class GestionClasesVisual {
         document.getElementById('claseIdEdit').value = c._id;
         document.getElementById('claseNombre').value = c.nombre;
         document.getElementById('claseEstado').value = c.estado || 'Activa';
-        
         const fecha = new Date(c.fechaClase);
         document.getElementById('claseFecha').value = fecha.toISOString().split('T')[0];
         document.getElementById('claseHora').value = fecha.toTimeString().split(' ')[0].substring(0,5);
-        
         if (c.urls) c.urls.forEach(u => this.agregarCampoUrl(u.tipo, u.link));
-        document.getElementById('tituloFormularioClase').innerText = '✏️ Editando Clase';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('tituloFormularioClase').textContent = '✏️ Editar Clase';
     }
 
     async guardarClase() {
         const id = document.getElementById('claseIdEdit').value;
-        const nombre = document.getElementById('claseNombre').value;
+        const nombre = document.getElementById('claseNombre').value.trim();
         const fecha = document.getElementById('claseFecha').value;
-        
-        if (!nombre || !fecha) return this.mostrarMensaje("Nombre y Fecha obligatorios", "error");
+        const hora = document.getElementById('claseHora').value;
+
+        if (!nombre || !fecha) return this.mostrarMensaje("Faltan campos", "error");
 
         const urls = Array.from(document.querySelectorAll('.url-entry')).map(div => ({
             tipo: div.querySelector('.url-tipo').value,
             link: div.querySelector('.url-link').value.trim()
         })).filter(u => u.link !== "");
 
-        const estado = document.getElementById('claseEstado').value;
-
         const payload = {
-            nombre: nombre,
-            fechaClase: `${fecha}T${document.getElementById('claseHora').value}:00`,
-            estado: estado,
+            nombre,
+            fechaClase: `${fecha}T${hora}:00.000Z`,
+            estado: document.getElementById('claseEstado').value,
             urls: urls,
-            // SE SOLUCIONA AQUÍ: Siempre activa para que no desaparezca del visor
-            activa: true, 
-            enlaces: { youtube: "", powerpoint: "" } // Reset para evitar errores de servidor
+            activa: true,
+            instructores: document.getElementById('claseInstructores').value.split(',').map(i => i.trim()).filter(i => i),
+            enlaces: { youtube: "", powerpoint: "" } 
         };
 
         try {
             const user = authSystem.getCurrentUser();
-            const method = id ? 'PUT' : 'POST';
-            const url = `${this.apiBaseUrl}/clases-historicas${id ? '/' + id : ''}`;
-            
-            const res = await fetch(url, {
-                method: method,
+            const res = await fetch(`${this.apiBaseUrl}/clases-historicas${id ? '/'+id : ''}`, {
+                method: id ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json', 'user-id': user._id },
                 body: JSON.stringify(payload)
             });
-            
-            const result = await res.json();
-            if (result.success) {
+            const resData = await res.json();
+            if (resData.success) {
                 this.mostrarMensaje("✅ Guardado", "success");
                 this.limpiarFormulario();
                 this.cargarClases();
+            } else {
+                this.mostrarMensaje("❌ Error: " + resData.message, "error");
             }
-        } catch (e) { this.mostrarMensaje("Error de conexión", "error"); }
+        } catch (e) { this.mostrarMensaje("Error servidor", "error"); }
     }
 
     limpiarFormulario() {
         document.getElementById('formClaseHistorica').reset();
         document.getElementById('claseIdEdit').value = '';
         document.getElementById('urlsContainer').innerHTML = '';
-        document.getElementById('tituloFormularioClase').innerText = '➕ Gestión de Clase';
+        document.getElementById('tituloFormularioClase').textContent = '➕ Gestión de Clase';
     }
 
     mostrarMensaje(t, tipo) {
         const el = document.getElementById('formMensaje');
-        el.innerText = t;
+        el.textContent = t;
         el.style.display = 'block';
-        el.style.color = tipo === 'success' ? '#34a853' : '#ea4335';
+        el.style.backgroundColor = tipo === 'success' ? '#d4edda' : '#f8d7da';
         setTimeout(() => el.style.display = 'none', 3000);
     }
 
     async eliminar(id) {
-        if (!confirm("¿Eliminar para siempre?")) return;
+        if (!confirm("¿Eliminar?")) return;
         const user = authSystem.getCurrentUser();
-        await fetch(`${this.apiBaseUrl}/clases-historicas/${id}`, { method: 'DELETE', headers: { 'user-id': user._id } });
+        await fetch(`${this.apiBaseUrl}/clases-historicas/${id}`, { 
+            method: 'DELETE', 
+            headers: { 'user-id': user._id } 
+        });
         this.cargarClases();
     }
 
     mostrarSeccion() {
         document.querySelectorAll('.table-container').forEach(s => s.style.display = 'none');
         document.getElementById('gestionClasesVisualSection').style.display = 'block';
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btnGestionClasesVisual').classList.add('active');
         this.cargarClases();
     }
 }
-
 window.gestionVisual = new GestionClasesVisual();
