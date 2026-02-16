@@ -3,307 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración</title>
+    <title>Panel de Administración - Sistema de Asistencia</title>
     <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        /* Estilos específicos para la nueva sección de Gestión Visual */
+        .gestion-visual-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+        .form-panel {
+            position: sticky;
+            top: 20px;
+        }
+        .url-entry {
+            background: var(--bg-card);
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 5px;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .clase-card-admin {
+            background: var(--bg-container);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .clase-card-admin.cancelada {
+            border-left: 5px solid var(--error-500);
+            opacity: 0.8;
+            background: #fffafa;
+        }
+        .clase-card-admin.publicada {
+            border-left: 5px solid var(--success-500);
+        }
+        .btn-small { padding: 5px 10px; font-size: 0.85em; }
+        
+        @media (max-width: 900px) {
+            .gestion-visual-grid { grid-template-columns: 1fr; }
+            .form-panel { position: static; }
+        }
+    </style>
 </head>
 <body>
     <div class="admin-container">
         <header class="admin-header">
             <h1>📊 Panel de Administración</h1>
             <div class="admin-info">
-                <span>👤 <span id="adminName"></span></span>
+                <span>👤 <span id="adminName">Cargando...</span></span>
                 <span>📧 <span id="adminEmail"></span></span>
-                <span id="adminRole"></span>
+                <span id="adminRole" class="role-badge"></span>
                 <button id="homeBtn" class="btn btn-primary">🏠 Inicio</button>
                 <button id="logoutBtn" class="btn btn-danger">🚪 Cerrar Sesión</button>
             </div>
         </header>
 
-        <!-- Navegación entre vistas -->
         <div class="view-navigation">
             <button id="btnInscripciones" class="view-btn active">📋 Inscripciones</button>
             <button id="btnUsuarios" class="view-btn">👥 Gestión de Usuarios</button>
-            <button id="btnMaterial" class="view-btn">📚 Solicitudes de Material</button>
-            <button id="btnMaterialHistorico" class="view-btn">📚 Material Histórico</button>
+            <button id="btnMaterial" class="view-btn">📚 Solicitudes Material</button>
+            <button id="btnMaterialHistorico" class="view-btn">📖 Material Histórico</button>
             <button id="btnGestionClasesVisual" class="view-btn">🎯 Gestión Visual de Clases</button>
         </div>
 
-        <!-- Estadísticas dinámicas -->
-        <div class="stats-container" id="statsInscripciones">
-            <div class="stat-card">
-                <h3>Total Inscripciones</h3>
-                <div class="stat-number" id="totalInscripciones">0</div>
+        <div class="stats-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+            <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.9em; opacity: 0.9;">Total Clases</div>
+                <div id="statsTotalClases" style="font-size: 2em; font-weight: bold;">0</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #34a853 0%, #2ecc71 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.9em; opacity: 0.9;">Activas</div>
+                <div id="statsClasesActivas" style="font-size: 2em; font-weight: bold;">0</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.9em; opacity: 0.9;">Canceladas</div>
+                <div id="statsClasesCanceladas" style="font-size: 2em; font-weight: bold;">0</div>
             </div>
         </div>
 
-        <div class="stats-container" id="statsUsuarios" style="display: none;">
-            <div class="stat-card">
-                <h3>Total Usuarios</h3>
-                <div class="stat-number" id="totalUsuarios">0</div>
+        <div id="inscripcionesSection" class="table-container">
+            <div class="actions-bar">
+                <div class="filtros-container" id="filtrosInscripciones">
+                    </div>
+                <button id="refreshBtn" class="btn btn-secondary">🔄 Actualizar Datos</button>
+                <button id="exportExcelBtn" class="btn btn-success">📊 Exportar Excel</button>
             </div>
-            <div class="stat-card">
-                <h3>Administradores</h3>
-                <div class="stat-number" id="usuariosAdmin">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Usuarios Avanzados</h3>
-                <div class="stat-number" id="usuariosAvanzados">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Usuarios Estándar</h3>
-                <div class="stat-number" id="usuariosEstandar">0</div>
-            </div>
-        </div>
-
-        <div class="stats-container" id="statsMaterial" style="display: none;">
-            <div class="stat-card">
-                <h3>Total Solicitudes</h3>
-                <div class="stat-number" id="totalSolicitudes">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Solicitudes Hoy</h3>
-                <div class="stat-number" id="solicitudesHoy">0</div>
-            </div>
-        </div>
-
-        <!-- Sección de filtros para inscripciones -->
-        <div class="filtros-container" id="filtrosInscripciones">
-            <label>Filtrar por clase:</label>
-            <div id="filtroContainer"></div>
-            <div class="contador-resultados" id="contadorResultados">0 inscripciones en total</div>
-        </div>
-
-        <!-- Sección de filtros para material -->
-        <div class="filtros-container" id="filtrosMaterial" style="display: none; margin-bottom: 20px;">
-            <label for="filtroClaseMaterialAdmin">Filtrar por clase:</label>
-            <select id="filtroClaseMaterialAdmin" class="filtro-select">
-                <option value="">Todas las clases</option>
-            </select>
-            
-            <div class="contador-resultados" id="contadorMaterialAdmin">
-                0 solicitudes en total
-            </div>
-            
-            <button id="btnExportarCorreosAdmin" class="btn btn-success" style="display: none;">
-                📧 Exportar Correos (.txt)
-            </button>
-        </div>
-
-        <div class="actions-bar">
-            <button id="refreshBtn" class="btn btn-primary">🔄 Actualizar Datos</button>
-            <button id="exportBtn" class="btn btn-success">📥 Exportar a CSV</button>
-            <button id="createUserBtn" class="btn btn-warning" style="display: none;">➕ Crear Usuario</button>
-        </div>
-
-        <!-- Sección de Inscripciones -->
-        <div class="table-container" id="inscripcionesSection">
-            <h2>📋 Lista de Inscripciones</h2>
             <table class="inscripciones-table">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Apellido y Nombre</th>
-                        <th>Legajo</th>
-                        <th>Clase</th>
-                        <th>Turno</th>
-                        <th>Email</th>
                         <th>Fecha</th>
-                    </tr>
-                </thead>
-                <tbody id="inscripcionesBody">
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Sección de Gestión de Usuarios (Solo para admins) -->
-        <div class="table-container" id="usuariosSection" style="display: none;">
-            <h2>👥 Gestión de Usuarios Registrados</h2>
-            <table class="inscripciones-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
                         <th>Apellido y Nombre</th>
                         <th>Legajo</th>
-                        <th>Email</th>
                         <th>Turno</th>
+                        <th>Clase</th>
+                    </tr>
+                </thead>
+                <tbody id="inscripcionesBody"></tbody>
+            </table>
+        </div>
+
+        <div id="usuariosSection" class="table-container" style="display: none;">
+            <table class="inscripciones-table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Legajo</th>
+                        <th>Email</th>
                         <th>Rol</th>
-                        <th>Fecha Registro</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="usuariosBody">
-                </tbody>
+                <tbody id="usuariosBody"></tbody>
             </table>
         </div>
 
-        <!-- Sección de Solicitudes de Material -->
-        <div class="table-container" id="materialSection" style="display: none;">
-            <h2>📚 Solicitudes de Material por Clase</h2>
-            
+        <div id="materialSection" class="table-container" style="display: none;">
+            <div class="actions-bar" id="filtrosMaterial"></div>
             <table class="inscripciones-table">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Apellido y Nombre</th>
+                        <th>Fecha Solicitud</th>
+                        <th>Usuario</th>
                         <th>Legajo</th>
+                        <th>Clase Solicitada</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="materialBody"></tbody>
+            </table>
+        </div>
+
+        <div id="materialHistoricoSection" class="table-container" style="display: none;">
+            <table class="inscripciones-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
                         <th>Clase</th>
-                        <th>Email</th>
                         <th>Fecha Solicitud</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="materialBodyAdmin">
-                    <tr>
-                        <td colspan="7" style="text-align: center; color: #666; padding: 20px;">
-                            No hay solicitudes de material
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <!-- Sección de Solicitudes de Material Histórico (nueva) -->
-         <div class="table-container" id="materialHistoricoSection" style="display: none;">
-            <h2>📚 Solicitudes de Material Histórico</h2>
-            <div class="stats-mini" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                <div class="stat-mini-card" style="background: var(--bg-card); padding: 15px; border-radius: 8px; flex: 1;">
-                    <div style="font-size: 0.9em; color: var(--text-muted);">Total Solicitudes</div>
-                    <div style="font-size: 1.8em; font-weight: bold;" id="totalSolicitudesHistorico">0</div>
-                </div>
-                <div class="stat-mini-card" style="background: var(--bg-card); padding: 15px; border-radius: 8px; flex: 1;">
-                    <div style="font-size: 0.9em; color: var(--text-muted);">Clases Distintas</div>
-                    <div style="font-size: 1.8em; font-weight: bold;" id="clasesDistintasHistorico">0</div>
-                </div>
-            </div>
-            <table class="inscripciones-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Apellido y Nombre</th>
-                        <th>Legajo</th>
-                        <th>Clase</th>
-                        <th>Email</th>
-                        <th>Fecha Solicitud</th>
-                        <th>Material</th>
-                    </tr>
-                </thead>
-                <tbody id="materialHistoricoBody">
-                    <tr>
-                        <td colspan="7" style="text-align: center; color: #666; padding: 20px;">
-                            No hay solicitudes de material histórico
-                        </td>
-                    </tr>
-                </tbody>
+                <tbody id="materialHistoricoBody"></tbody>
             </table>
         </div>
 
-        <!-- Sección de Gestión Visual de Clases Históricas -->
-<div class="table-container" id="gestionClasesVisualSection" style="display: none;">
-    <h2>📚 Gestión Visual de Clases Históricas</h2>
-    
-    <div class="gestion-container" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-top: 20px;">
-        
-        <!-- Panel izquierdo - Formulario de carga -->
-         
-        <div class="form-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">
-    <h3 id="tituloFormularioClase" style="margin-bottom: 20px; color: var(--text-primary);">➕ Gestión de Solicitud de Material</h3>
-    
-    <form id="formClaseHistorica" novalidate style="display: flex; flex-direction: column; gap: 15px;">
-        <input type="hidden" id="claseIdEdit" value="">
+        <div id="gestionClasesVisualSection" class="table-container" style="display: none;">
+            <div class="gestion-visual-grid">
+                
+                <div class="form-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <h3 id="tituloFormularioClase" style="margin-bottom: 20px; color: var(--text-primary);">➕ Nueva Clase Histórica</h3>
+                    
+                    <form id="formClaseHistorica" novalidate style="display: flex; flex-direction: column; gap: 12px;">
+                        <input type="hidden" id="claseIdEdit" value="">
 
-        <div class="form-group">
-            <label style="font-weight: bold;">Nombre de la Clase *</label>
-            <input type="text" id="claseNombre" 
-                   style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-        </div>
-        
-        <div class="form-group">
-            <label style="font-weight: bold;">Descripción</label>
-            <textarea id="claseDescripcion" rows="2"
-                      style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);"></textarea>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div class="form-group">
-                <label style="font-weight: bold;">Fecha *</label>
-                <input type="date" id="claseFecha" 
-                       style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-            </div>
-            <div class="form-group">
-                <label style="font-weight: bold;">Hora</label>
-                <input type="time" id="claseHora" value="10:00"
-                       style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-            </div>
-        </div>
+                        <div class="form-group">
+                            <label style="font-weight: bold; font-size: 0.9em;">Nombre de la Clase *</label>
+                            <input type="text" id="claseNombre" required placeholder="Ej: Telemetría Avanzada"
+                                   style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label style="font-weight: bold; font-size: 0.9em;">Fecha *</label>
+                                <input type="date" id="claseFecha" required
+                                       style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-weight: bold; font-size: 0.9em;">Hora</label>
+                                <input type="time" id="claseHora" value="10:00"
+                                       style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                            </div>
+                        </div>
 
-        <div class="form-group">
-            <label style="font-weight: bold;">Instructores (opcional)</label>
-            <input type="text" id="claseInstructores" placeholder="Separados por coma..."
-                   style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-        </div>
-        
-        <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h4 style="margin: 0;">🔗 Enlaces (No Obligatorios)</h4>
-                <button type="button" id="btnAgregarUrl" class="btn btn-primary btn-small">➕ Añadir Fila</button>
-            </div>
-            <div id="urlsContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
-        </div>
-        
-        <div class="form-group">
-            <label style="font-weight: bold;">Estado del Sistema *</label>
-            <select id="claseEstado" 
-                    style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-                <option value="Activa">Activa (Borrador)</option>
-                <option value="Publicada">Publicada (Visible Alumnos)</option>
-                <option value="Cancelada">Cancelada (Inactiva)</option>
-            </select>
-        </div>
-        
-        <div style="display: flex; gap: 10px; margin-top: 10px;">
-            <button type="submit" id="btnSubmitClase" class="btn btn-success" style="flex: 2;">💾 Guardar Cambios</button>
-            <button type="button" id="btnLimpiarForm" class="btn btn-secondary" style="flex: 1;">🗑️ Cancelar</button>
-        </div>
-    </form>
-    <div id="formMensaje" style="margin-top: 15px; padding: 10px; border-radius: 5px; display: none; text-align: center; font-weight: bold;"></div>
-</div>
-        
-        <!-- Panel derecho - Lista de clases -->
-        <div class="list-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="color: var(--text-primary);">📋 Clases Existentes</h3>
-                <button id="btnRefrescarClases" class="btn btn-primary btn-small">🔄 Refrescar</button>
-            </div>
-            
-            <div id="clasesListContainer" style="max-height: 500px; overflow-y: auto;">
-                <!-- Las clases se cargan aquí dinámicamente -->
-                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
-                    Cargando clases...
+                        <div class="form-group">
+                            <label style="font-weight: bold; font-size: 0.9em;">Instructores</label>
+                            <input type="text" id="claseInstructores" placeholder="Separados por coma..."
+                                   style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                        </div>
+
+                        <div class="form-group">
+                            <label style="font-weight: bold; font-size: 0.9em;">Descripción</label>
+                            <textarea id="claseDescripcion" rows="2" placeholder="Breve resumen..."
+                                      style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);"></textarea>
+                        </div>
+                        
+                        <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <label style="font-weight: bold; font-size: 0.9em;">🔗 Material (URLs)</label>
+                                <button type="button" id="btnAgregarUrl" class="btn btn-primary btn-small">➕ Añadir</button>
+                            </div>
+                            <div id="urlsContainer"></div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label style="font-weight: bold; font-size: 0.9em;">Estado del Sistema *</label>
+                            <select id="claseEstado" 
+                                    style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
+                                <option value="Activa">Activa (Borrador)</option>
+                                <option value="Publicada">Publicada (Visible para Alumnos)</option>
+                                <option value="Cancelada">Cancelada (Mantiene Visibilidad)</option>
+                            </select>
+                        </div>
+                        
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            <button type="submit" id="btnSubmitClase" class="btn btn-success" style="flex: 2;">💾 Guardar Clase</button>
+                            <button type="button" id="btnLimpiarForm" class="btn btn-secondary" style="flex: 1;">🗑️ Reset</button>
+                        </div>
+                    </form>
+                    <div id="formMensaje" style="margin-top: 10px; padding: 10px; border-radius: 6px; display: none; text-align: center; font-size: 0.9em;"></div>
                 </div>
+
+                <div class="list-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="color: var(--text-primary); margin: 0;">📋 Listado de Clases</h3>
+                        <button id="btnRefrescarClases" class="btn btn-small">🔄 Refrescar</button>
+                    </div>
+                    <div id="clasesListContainer">
+                        </div>
+                </div>
+
             </div>
         </div>
-    </div>
-    
-    <!-- Estadísticas visuales -->
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.9em; opacity: 0.9;">Total Clases</div>
-            <div id="statsTotalClases" style="font-size: 2em; font-weight: bold;">0</div>
-        </div>
-        <div style="background: linear-gradient(135deg, #34a853 0%, #2ecc71 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.9em; opacity: 0.9;">Activas</div>
-            <div id="statsClasesActivas" style="font-size: 2em; font-weight: bold;">0</div>
-        </div>
-        <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.9em; opacity: 0.9;">Próximas</div>
-            <div id="statsClasesProximas" style="font-size: 2em; font-weight: bold;">0</div>
-        </div>
-        <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.9em; opacity: 0.9;">Solicitudes</div>
-            <div id="statsTotalSolicitudesHistorico" style="font-size: 2em; font-weight: bold;">0</div>
-        </div>
-    </div>
-</div>
-
     </div>
 
     <script src="/js/auth.js"></script>
