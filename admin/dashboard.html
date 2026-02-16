@@ -205,7 +205,7 @@
         <!-- Panel izquierdo - Formulario de carga -->
          
         <div class="form-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">
-    <h3 id="tituloFormularioClase" style="margin-bottom: 20px; color: var(--text-primary);">➕ Agregar Nueva Clase</h3>
+    <h3 id="tituloFormularioClase" style="margin-bottom: 20px; color: var(--text-primary);">➕ Gestionar Clase</h3>
     
     <form id="formClaseHistorica" style="display: flex; flex-direction: column; gap: 15px;">
         <input type="hidden" id="claseIdEdit" value="">
@@ -246,16 +246,15 @@
                 <h4 style="margin: 0;">🔗 Enlaces de Material (Opcional)</h4>
                 <button type="button" id="btnAgregarUrl" class="btn btn-primary btn-small">➕ Añadir URL</button>
             </div>
-            <div id="urlsContainer" style="display: flex; flex-direction: column; gap: 8px;">
-                </div>
+            <div id="urlsContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
         
         <div class="form-group">
-            <label style="font-weight: bold;">Estado de Visibilidad *</label>
+            <label style="font-weight: bold;">Estado de la Clase *</label>
             <select id="claseEstado" required 
                     style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
                 <option value="Activa">Activa (Borrador)</option>
-                <option value="Publicada">Publicada (Visible para Alumnos)</option>
+                <option value="Publicada">Publicada (Visible Alumnos)</option>
                 <option value="Cancelada">Cancelada</option>
             </select>
         </div>
@@ -266,7 +265,7 @@
         </div>
     </form>
     <div id="formMensaje" style="margin-top: 15px; padding: 10px; border-radius: 5px; display: none; text-align: center; font-weight: bold;"></div>
-</div>  
+</div>
         
         <!-- Panel derecho - Lista de clases -->
         <div class="list-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">

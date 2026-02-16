@@ -22,7 +22,6 @@ class GestionClasesVisual {
         document.getElementById('btnGestionClasesVisual').onclick = () => this.mostrarSeccion();
     }
 
-    // Genera campos de URL SIN el atributo 'required'
     agregarCampoUrl(tipo = 'PDF', link = '') {
         const container = document.getElementById('urlsContainer');
         const id = 'url_' + Date.now();
@@ -59,17 +58,23 @@ class GestionClasesVisual {
 
     renderizarLista() {
         const container = document.getElementById('clasesListContainer');
+        // NO filtramos las canceladas, mostramos todo.
         container.innerHTML = this.clases.sort((a,b) => new Date(b.fechaClase) - new Date(a.fechaClase)).map(c => {
             const estado = c.estado || (c.activa ? 'Activa' : 'Cancelada');
             const tieneMaterial = (c.urls && c.urls.length > 0) || (c.enlaces?.youtube || c.enlaces?.powerpoint);
-            const visible = estado === 'Publicada' && tieneMaterial;
+            
+            // Una clase solo es visible para el alumno si está PUBLICADA y tiene material.
+            const visibleParaAlumno = estado === 'Publicada' && tieneMaterial;
 
             return `
-                <div style="background: var(--bg-container); padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <div style="background: var(--bg-container); padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; opacity: ${estado === 'Cancelada' ? '0.7' : '1'}">
                     <div>
-                        <strong>${c.nombre} ${visible ? '' : '🚫👁️'}</strong>
+                        <strong>${c.nombre} ${visibleParaAlumno ? '' : '🚫👁️'}</strong>
                         <div style="font-size: 0.8em; color: var(--text-muted);">
-                            ${new Date(c.fechaClase).toLocaleDateString()} | <span style="color: ${visible ? '#34a853' : '#f9ab00'}">${estado}</span>
+                            ${new Date(c.fechaClase).toLocaleDateString()} | 
+                            <span style="color: ${estado === 'Publicada' ? '#34a853' : (estado === 'Cancelada' ? '#ea4335' : '#f9ab00')}">
+                                ${estado}
+                            </span>
                         </div>
                     </div>
                     <div style="display: flex; gap: 5px;">
@@ -115,18 +120,21 @@ class GestionClasesVisual {
             link: entry.querySelector('.url-link').value.trim()
         })).filter(u => u.link !== "");
 
+        const estado = document.getElementById('claseEstado').value;
+
         const payload = {
             nombre: document.getElementById('claseNombre').value,
             descripcion: document.getElementById('claseDescripcion').value,
             fechaClase: `${document.getElementById('claseFecha').value}T${document.getElementById('claseHora').value}:00`,
             instructores: document.getElementById('claseInstructores').value.split(',').map(i => i.trim()).filter(i => i),
-            estado: document.getElementById('claseEstado').value,
+            estado: estado,
             urls: urls,
+            // Forzamos strings vacíos para que el servidor no marque error 400
             enlaces: { 
                 youtube: urls.find(u => u.tipo === 'YouTube')?.link || "",
                 powerpoint: urls.find(u => u.tipo !== 'YouTube')?.link || ""
             },
-            activa: document.getElementById('claseEstado').value !== 'Cancelada'
+            activa: estado !== 'Cancelada'
         };
 
         try {
@@ -185,6 +193,5 @@ class GestionClasesVisual {
     }
 }
 
-// Inicialización
-if (window.gestionVisual) delete window.gestionVisual;
+// Re-inicialización segura
 window.gestionVisual = new GestionClasesVisual();
