@@ -205,14 +205,14 @@
         <!-- Panel izquierdo - Formulario de carga -->
          
         <div class="form-panel" style="background: var(--bg-card); padding: 20px; border-radius: 10px;">
-    <h3 id="tituloFormularioClase" style="margin-bottom: 20px; color: var(--text-primary);">➕ Gestionar Clase</h3>
+    <h3 id="tituloFormularioClase" style="margin-bottom: 20px; color: var(--text-primary);">➕ Gestión de Solicitud de Material</h3>
     
-    <form id="formClaseHistorica" style="display: flex; flex-direction: column; gap: 15px;">
+    <form id="formClaseHistorica" novalidate style="display: flex; flex-direction: column; gap: 15px;">
         <input type="hidden" id="claseIdEdit" value="">
 
         <div class="form-group">
             <label style="font-weight: bold;">Nombre de la Clase *</label>
-            <input type="text" id="claseNombre" required 
+            <input type="text" id="claseNombre" 
                    style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
         </div>
         
@@ -225,7 +225,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="form-group">
                 <label style="font-weight: bold;">Fecha *</label>
-                <input type="date" id="claseFecha" required 
+                <input type="date" id="claseFecha" 
                        style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
             </div>
             <div class="form-group">
@@ -236,31 +236,31 @@
         </div>
 
         <div class="form-group">
-            <label style="font-weight: bold;">Instructores (separados por coma)</label>
-            <input type="text" id="claseInstructores" placeholder="Ej: Dr. Pérez, Lic. Gómez"
+            <label style="font-weight: bold;">Instructores (opcional)</label>
+            <input type="text" id="claseInstructores" placeholder="Separados por coma..."
                    style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
         </div>
         
         <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h4 style="margin: 0;">🔗 Enlaces de Material (Opcional)</h4>
-                <button type="button" id="btnAgregarUrl" class="btn btn-primary btn-small">➕ Añadir URL</button>
+                <h4 style="margin: 0;">🔗 Enlaces (No Obligatorios)</h4>
+                <button type="button" id="btnAgregarUrl" class="btn btn-primary btn-small">➕ Añadir Fila</button>
             </div>
             <div id="urlsContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
         
         <div class="form-group">
-            <label style="font-weight: bold;">Estado de la Clase *</label>
-            <select id="claseEstado" required 
+            <label style="font-weight: bold;">Estado del Sistema *</label>
+            <select id="claseEstado" 
                     style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-container); color: var(--text-primary);">
-                <option value="Activa">Activa (Borrador Interno)</option>
-                <option value="Publicada">Publicada (Visible para Alumnos)</option>
-                <option value="Cancelada">Cancelada (Visible pero Inactiva)</option>
+                <option value="Activa">Activa (Borrador)</option>
+                <option value="Publicada">Publicada (Visible Alumnos)</option>
+                <option value="Cancelada">Cancelada (Inactiva)</option>
             </select>
         </div>
         
         <div style="display: flex; gap: 10px; margin-top: 10px;">
-            <button type="submit" id="btnSubmitClase" class="btn btn-success" style="flex: 2;">💾 Guardar Clase</button>
+            <button type="submit" id="btnSubmitClase" class="btn btn-success" style="flex: 2;">💾 Guardar Cambios</button>
             <button type="button" id="btnLimpiarForm" class="btn btn-secondary" style="flex: 1;">🗑️ Cancelar</button>
         </div>
     </form>
