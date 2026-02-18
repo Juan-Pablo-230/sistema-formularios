@@ -3,15 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Asistencia - Clases</title>
+    <title>Sistema de Asistencia - Beta</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="shortcut icon" href="/img/logo.png" type="image/x-icon">
 </head>
 <body>
     <div class="container">
         <header class="main-header">
             <div class="header-content">
+                    <div>
+                        <img src="/img/logo.png" alt="logo" class="logo">
+                    </div>
                 <div class="header-text">
-                    <h1>Sistema de inscripciones</h1>
+                    <h1>Sistema de inscripciones - Beta</h1>
                     <p>Seleccione la clase para registrar la inscripcion</p>
                 </div>
                 
@@ -41,14 +45,6 @@
                 </div>
             </div>
         </header>
-        
-        <div class="search-container">
-            <div class="search-box">
-                <p>Escribe aqui el nombre de la clase para buscar su formulario:</p>
-                <input type="text" id="searchInput" class="form-control" placeholder="introduce el nombre de la clase.">
-                <div id="searchResults" class="search-results"></div>
-            </div>
-        </div>
 
         <div class="main-layout">
             <!-- Columna izquierda: Clases principales -->
@@ -75,12 +71,9 @@
                         <span class="class-date">Clase dia 25/02/2026</span>
                     </div>
 
-                    <div class="class-card" onclick="window.location.href='/material.html'">
-                        <h3>Solicitud Material de clases.</h3>
+                    <div class="class-card" onclick="window.location.href='/solicitud-material.html'">
+                        <h3>Solicitud material de clases.</h3>
                         <p>Por este medio solo podras solicitar material de clase, no es valido como formulario de asistencia</p>
-                        <span class="class-date">Clase dia 19/02/2026</span>
-                        <span class="class-date">Clase dia 24/02/2026</span>
-                        <span class="class-date">Clase dia 25/02/2026</span>
                     </div>
                 </div>
 
@@ -109,7 +102,7 @@
             <div class="right-column">
                 <div class="calendar-sidebar">
                     <div class="calendar-header">
-                        <h3>📅 Calendario ICS</h3>
+                        <h3>📅 Calendario</h3>
                         <p>Agrega clases a tu calendario personal</p>
                     </div>
                     
@@ -129,78 +122,30 @@
                     <!-- Lista de clases para agregar al calendario -->
                     <div class="calendar-classes-list">
                         <h4>Clases Disponibles:</h4>
+                        <!-- Las clases se insertan acá automáticamente desde JS -->
                         
-                        <!-- Clase 3 -->
-                        <div class="calendar-class-card" data-class-id="3">
-                            <div class="class-info">
-                                <div class="class-title">Ausentismo</div>
-                                <div class="class-details">
-                                    <span class="detail-item">📅 19/02/2026</span>
-                                    <span class="detail-item">🕒 10:00hs</span>
-                                    <span class="detail-item modality presencial">Presencial</span>
-                                    <!-- <span class="detail-item modality hibrida">Híbrida</span> -->
-                                </div>
-                                <div class="class-instructor">Lic. Mercedes Sosa</div>
+                        <!-- ===== ACCIONES DEL CALENDARIO ===== -->
+                        <div class="calendar-actions">
+                            <div class="selected-count">
+                                <span id="selectedClassesCount">0</span> clases seleccionadas
                             </div>
-                            <button class="add-to-calendar-btn" onclick="calendarManager.addToCalendar(3)">
-                                + Agregar a .ics
-                            </button>
-                        </div>
-                        
-                        <!-- Clase 4 -->
-                        <div class="calendar-class-card" data-class-id="4">
-                            <div class="class-info">
-                                <div class="class-title">Stroke / IAM</div>
-                                <div class="class-details">
-                                    <span class="detail-item">📅 24/02/2026</span>
-                                    <span class="detail-item">🕒 12:00hs</span>
-                                    <span class="detail-item modality virtual">Virtual</span>
-                                </div>
-                                <div class="class-instructor">Lic. Daniel de la Rosa, Lic. Liliana Areco</div>
+                            
+                            <div class="action-buttons">
+                                <button id="downloadSelectedBtn" class="download-selected-btn" onclick="calendarManager.downloadSelected()">
+                                    📥 Descargar clases seleccionadas
+                                </button>
+                                <button id="downloadAllBtn" class="download-all-btn" onclick="calendarManager.downloadAll()">
+                                    📥 Descargar todas las clases
+                                </button>
                             </div>
-                            <button class="add-to-calendar-btn" onclick="calendarManager.addToCalendar(4)">
-                                + Agregar a .ics
-                            </button>
                         </div>
                         
-                        <!-- Clase 5 -->
-                        <div class="calendar-class-card" data-class-id="5">
-                            <div class="class-info">
-                                <div class="class-title">CoPaP</div>
-                                <div class="class-details">
-                                    <span class="detail-item">📅 25/02/2026</span>
-                                    <span class="detail-item">🕒 15:30hs</span>
-                                    <span class="detail-item modality virtual">Virtual</span>
-                                </div>
-                                <div class="class-instructor">Lic. Karina Raihy, Enf. Sara Aiduc</div>
+                        <!-- ===== VISTA PREVIA ===== -->
+                        <div class="selection-preview">
+                            <h4>📋 Vista Previa:</h4>
+                            <div class="preview-list" id="previewList">
+                                <div class="empty-preview">No hay clases seleccionadas</div>
                             </div>
-                            <button class="add-to-calendar-btn" onclick="calendarManager.addToCalendar(5)">
-                                + Agregar a .ics
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Acciones del calendario -->
-                    <div class="calendar-actions">
-                        <div class="selected-count">
-                            <span id="selectedClassesCount">0</span> clases seleccionadas
-                        </div>
-                        
-                        <div class="action-buttons">
-                            <button id="downloadSelectedBtn" class="download-selected-btn" onclick="calendarManager.downloadSelected()">
-                                📥 Descargar Seleccionadas (.ics)
-                            </button>
-                            <button id="downloadAllBtn" class="download-all-btn" onclick="calendarManager.downloadAll()">
-                                📥 Descargar Todas (.ics)
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Vista previa de selección -->
-                    <div class="selection-preview" id="selectionPreview">
-                        <h4>📋 Vista Previa:</h4>
-                        <div class="preview-list" id="previewList">
-                            <div class="empty-preview">No hay clases seleccionadas</div>
                         </div>
                     </div>
                 </div>
@@ -213,7 +158,7 @@
         <!-- Mantener el contenido existente del modal -->
         <div class="modal-container">
             <div class="modal-header">
-                <h2>✏️ Mi perfil</h2>
+                <h2>✏️ Mi perfil - Version Beta</h2>
                 <button class="close-modal">&times;</button>
             </div>
             
@@ -245,7 +190,7 @@
                         <label for="updateLegajo">Número de Legajo *</label>
                         <input type="number" id="updateLegajo" name="legajo" required>
                         <small class="legajo-warning" style="display: none;">
-                            ⚠️ Este legajo ya está registrado. Use su cuenta existente.
+                            ⚠️ Este legajo ya está registrado. Por favor use su cuenta existente. Si olvidó su contraseña, por favor contacte al administrador para poder realizar el restablecimiento de la misma.
                         </small>
                     </div>
 
@@ -345,10 +290,13 @@
             </div>
         </div>
     </div>
+    <footer><a href="https://sistema-formularios-production.up.railway.app/">Ir a la version estable del sistema</a></footer>
 
     <script src="/js/auth.js"></script>
-    <script src="/js/search.js"></script>
     <script src="/js/profile-updater.js"></script>
     <script src="/js/calendar.js"></script>
+    <script>
+        alert("Esta es una versión BETA del sistema de inscripciones. Puede contener errores o funcionalidades incompletas. Por favor, utilícelo con precaución y reporte cualquier problema al desarrollador.");
+    </script>
 </body>
 </html>

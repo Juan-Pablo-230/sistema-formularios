@@ -1,5 +1,3 @@
-console.log('calendar.js cargado correctamente - Versión Columnas Derecha');
-
 class CalendarManager {
     constructor() {
         this.selectedClasses = new Set();
@@ -15,9 +13,9 @@ class CalendarManager {
                 title: "Ausentismo",
                 date: "2026-02-19",
                 displayDate: "19/02/2026",
-                time: "13:00",
-                displayTime: "13:00hs",
-                endTime: "14:00",
+                time: "10:00",
+                displayTime: "10:00hs",
+                endTime: "11:00",
                 modality: "Presencial",
                 instructor: "Lic. Mercedes Sosa",
                 location: "Aula a confirmar",
@@ -28,9 +26,9 @@ class CalendarManager {
                 title: "Stroke / IAM",
                 date: "2026-02-24",
                 displayDate: "24/02/2026",
-                time: "15:00",
-                displayTime: "15:00hs",
-                endTime: "16:00",
+                time: "10:00",
+                displayTime: "10:00hs",
+                endTime: "13:00",
                 modality: "Virtual",
                 instructor: "Lic. Daniel de la Rosa, Lic. Liliana Areco",
                 location: "Microsoft Teams",
@@ -41,8 +39,8 @@ class CalendarManager {
                 title: "CoPaP",
                 date: "2026-02-25",
                 displayDate: "25/02/2026",
-                time: "18:30",
-                displayTime: "18:30hs",
+                time: "15:30",
+                displayTime: "15:30hs",
                 endTime: "19:30",
                 modality: "Virtual",
                 instructor: "Lic. Karina Raihy, Enf. Sara Aiduc",
@@ -50,6 +48,88 @@ class CalendarManager {
                 description: "Clase sobre cuidados paliativos y atención primaria"
             }
         ];
+    }
+
+    // Renderizar las clases en el HTML
+    renderClasses() {
+        const container = document.querySelector('.calendar-classes-list');
+        if (!container) {
+            console.warn('No se encontró el contenedor .calendar-classes-list');
+            return;
+        }
+        
+        // Buscar elementos importantes dentro del container
+        const title = container.querySelector('h4');
+        const calendarActions = container.querySelector('.calendar-actions');
+        const selectionPreview = container.querySelector('.selection-preview');
+        
+        // Guardar los elementos que NO son tarjetas de clase
+        const elementosAMantener = [];
+        if (title) elementosAMantener.push(title);
+        if (calendarActions) elementosAMantener.push(calendarActions);
+        if (selectionPreview) elementosAMantener.push(selectionPreview);
+        
+        // Limpiar SOLO las tarjetas de clase
+        const children = Array.from(container.children);
+        children.forEach(child => {
+            // Si el elemento no está en la lista de elementos a mantener, lo removemos
+            if (!elementosAMantener.includes(child) && !child.classList.contains('calendar-class-card')) {
+                child.remove();
+            }
+        });
+        
+        // Remover todas las tarjetas existentes
+        const tarjetasExistentes = container.querySelectorAll('.calendar-class-card');
+        tarjetasExistentes.forEach(tarjeta => tarjeta.remove());
+        
+        // Renderizar cada clase
+        this.classesData.forEach(cls => {
+            const classCard = document.createElement('div');
+            classCard.className = 'calendar-class-card';
+            classCard.dataset.classId = cls.id;
+            
+            // Verificar si la clase está seleccionada
+            if (this.selectedClasses.has(cls.id)) {
+                classCard.classList.add('selected');
+            }
+            
+            // Determinar clase de modalidad para CSS
+            const modalityClass = cls.modality.toLowerCase() === 'virtual' ? 'virtual' : 'presencial';
+            
+            // Determinar texto del botón según selección
+            const buttonText = this.selectedClasses.has(cls.id) ? '✓ Agregada' : '+ Agregar al calendario';
+            const buttonClass = this.selectedClasses.has(cls.id) ? 'add-to-calendar-btn added' : 'add-to-calendar-btn';
+            
+            classCard.innerHTML = `
+                <div class="class-info">
+                    <div class="class-title">${cls.title}</div>
+                    <div class="class-details">
+                        <span class="detail-item">📅 ${cls.displayDate}</span>
+                        <span class="detail-item">🕒 ${cls.displayTime}</span>
+                        <span class="detail-item modality ${modalityClass}">${cls.modality}</span>
+                    </div>
+                    <div class="class-instructor">${cls.instructor}</div>
+                </div>
+                <button class="${buttonClass}" onclick="calendarManager.addToCalendar(${cls.id})">
+                    ${buttonText}
+                </button>
+            `;
+            
+            // Insertar antes de calendar-actions si existe
+            if (calendarActions) {
+                container.insertBefore(classCard, calendarActions);
+            } else {
+                container.appendChild(classCard);
+            }
+        });
+        
+        // Actualizar contador y vista previa después de renderizar
+        this.updateSelectionCount();
+        this.updatePreview();
+        this.updateDownloadButton();
+        this.markUpcomingClasses();
+        
+        console.log('✅ Clases renderizadas desde JS:', this.classesData.length);
     }
 
     // Obtener recordatorios seleccionados
@@ -70,7 +150,7 @@ class CalendarManager {
             // Agregar a la selección
             this.selectedClasses.add(classId);
             this.updateClassCard(classId, true);
-            this.showToast('La clase ha sido agregada a tu calendario');
+            this.showToast('La clase ha sido agregada al calendario');
         }
         
         this.updateSelectionCount();
@@ -90,7 +170,7 @@ class CalendarManager {
                 button.classList.add('added');
             } else {
                 classCard.classList.remove('selected');
-                button.textContent = '+ Agregar a .ics';
+                button.textContent = '+ Agregar al calendario';
                 button.classList.remove('added');
             }
         }
@@ -217,10 +297,24 @@ class CalendarManager {
         return icsContent.join('\r\n');
     }
 
-    // Crear un evento individual
+    /**
+     * Crea un evento en formato UTC para .ics
+     * Convierte hora Argentina (GMT-3) a UTC sumando 3 horas
+     */
     createEvent(cls, reminders, dtstamp) {
-        const startDate = new Date(`${cls.date}T${cls.time}:00`);
-        const endDate = new Date(`${cls.date}T${cls.endTime}:00`);
+        // Parsear fecha y hora Argentina
+        const [year, month, day] = cls.date.split('-').map(Number);
+        
+        // Hora de inicio Argentina
+        const [startHour, startMinute] = cls.time.split(':').map(Number);
+        // Hora de fin Argentina
+        const [endHour, endMinute] = cls.endTime.split(':').map(Number);
+        
+        // Crear fechas UTC (sumar 3 horas para convertir ART a UTC)
+        const startDate = new Date(Date.UTC(year, month - 1, day, startHour + 3, startMinute, 0));
+        const endDate = new Date(Date.UTC(year, month - 1, day, endHour + 3, endMinute, 0));
+        
+        console.log(`📅 Creando evento para clase "${cls.title}" - Hora Argentina: ${cls.time} - Hora UTC: ${this.formatDateForICS(startDate)}`);
         
         const event = [
             'BEGIN:VEVENT',
@@ -255,10 +349,14 @@ class CalendarManager {
         return event;
     }
 
-    // Formatear fecha para .ics
+    /**
+     * Formatea una fecha UTC para .ics
+     * @param {Date} date - Fecha en UTC
+     * @returns {string} Fecha formateada como YYYYMMDDTHHmmSSZ
+     */
     formatDateForICS(date) {
-        const utcDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-        return utcDate.toISOString()
+        // date ya es UTC, solo formateamos y agregamos 'Z'
+        return date.toISOString()
             .replace(/[-:]/g, '')
             .split('.')[0] + 'Z';
     }
@@ -393,37 +491,29 @@ class CalendarManager {
     }
 
     // Mostrar toast temporal
-    showToast(title, message) {
+    showToast(message) {
+        // Crear toast
         const toast = document.createElement('div');
         toast.className = 'calendar-toast';
+        toast.textContent = message;
         toast.style.cssText = `
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: var(--bg-container);
-            color: var(--text-primary);
-            padding: 12px 20px;
+            background: #333;
+            color: white;
+            padding: 12px 24px;
             border-radius: 8px;
-            box-shadow: var(--shadow-lg);
-            border-left: 4px solid var(--accent-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 9999;
-            max-width: 300px;
             animation: slideInUp 0.3s ease;
         `;
         
-        toast.innerHTML = `
-            <div style="font-weight: 600; margin-bottom: 4px;">${title}</div>
-            <div style="font-size: 0.9em; color: var(--text-secondary);">${message}</div>
-        `;
-
         document.body.appendChild(toast);
-
-        // Remover después de 3 segundos
+        
         setTimeout(() => {
-            if (toast.parentNode) {
-                toast.style.animation = 'slideOutDown 0.3s ease forwards';
-                setTimeout(() => toast.remove(), 300);
-            }
+            toast.style.animation = 'slideOutDown 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
 
@@ -433,7 +523,10 @@ class CalendarManager {
         const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
         
         this.classesData.forEach(cls => {
-            const classDate = new Date(`${cls.date}T${cls.time}:00`);
+            const [year, month, day] = cls.date.split('-').map(Number);
+            const [hour, minute] = cls.time.split(':').map(Number);
+            // Crear fecha en hora local para comparación visual
+            const classDate = new Date(year, month - 1, day, hour, minute);
             const classCard = document.querySelector(`.calendar-class-card[data-class-id="${cls.id}"]`);
             
             if (classCard && classDate > now && classDate <= threeDaysFromNow) {
@@ -446,20 +539,19 @@ class CalendarManager {
     init() {
         console.log('✅ CalendarManager inicializado');
         
+        // Esperar a que el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.renderClasses());
+        } else {
+            this.renderClasses();
+        }
+        
         // Configurar eventos de los checkboxes
         document.querySelectorAll('.reminder-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', () => {
                 console.log('🔔 Recordatorios actualizados:', this.getSelectedReminders());
             });
         });
-        
-        // Marcar clases próximas
-        this.markUpcomingClasses();
-        
-        // Actualizar estado inicial
-        this.updateSelectionCount();
-        this.updatePreview();
-        this.updateDownloadButton();
         
         // Verificar periódicamente clases próximas
         setInterval(() => this.markUpcomingClasses(), 60000);
@@ -508,27 +600,12 @@ document.addEventListener('DOMContentLoaded', function() {
 // API para uso desde otros scripts
 window.CalendarAPI = {
     addClass: function(classData) {
-        // Esta función permite agregar clases dinámicamente desde otros scripts
         console.log('➕ Agregando clase dinámicamente:', classData);
-        // Implementación futura para agregar clases dinámicamente
     },
     
     clearSelection: function() {
         calendarManager.selectedClasses.clear();
-        calendarManager.updateSelectionCount();
-        calendarManager.updatePreview();
-        calendarManager.updateDownloadButton();
-        
-        // Limpiar selección visual
-        document.querySelectorAll('.calendar-class-card').forEach(card => {
-            card.classList.remove('selected');
-            const button = card.querySelector('.add-to-calendar-btn');
-            if (button) {
-                button.textContent = '+ Agregar a .ics';
-                button.classList.remove('added');
-            }
-        });
-        
-        calendarManager.showToast('Selección limpiada', 'Todas las clases han sido removidas');
+        calendarManager.renderClasses(); // Volver a renderizar para actualizar botones
+        calendarManager.showToast('Selección limpiada');
     }
 };
