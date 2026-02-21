@@ -91,27 +91,6 @@ class SistemaFormularios {
     async eliminarCuenta(datos) {
         return await this.makeRequest('/usuarios/cuenta', datos, 'DELETE');
     }
-    
-    async crearSolicitudMaterial(datos) {
-        return await this.makeRequest('/material/solicitudes', datos);
-    }
-    
-    async obtenerSolicitudesMaterial(filtros = {}) {
-        const params = new URLSearchParams(filtros).toString();
-        return await this.makeRequest(`/material/solicitudes?${params}`, null, 'GET');
-    }
-    
-    async eliminarSolicitudMaterial(solicitudId) {
-        return await this.makeRequest(`/material/solicitudes/${solicitudId}`, null, 'DELETE');
-    }
-    
-    async obtenerEstadisticasMaterial() {
-        return await this.makeRequest('/material/estadisticas', null, 'GET');
-    }
-    
-    async inicializarMaterial() {
-        return await this.makeRequest('/material/init', null, 'GET');
-    }
 }
 
 const sistema = new SistemaFormularios();

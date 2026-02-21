@@ -11,7 +11,7 @@
     <div class="container">
         
         <h1>Formulario de inscripción</h1>
-        <h2>Clase "Stroke / IAM"</h2>
+        <h2>Clase "Ausentismo"</h2>
         <p class="deadline">${elementoFecha.textContent}</p>
 
         <div class="back-btn-container">
@@ -22,7 +22,7 @@
             <!-- Campo oculto para el asunto del email -->
             <input type="hidden" name="_captcha" value="false">
             <input type="hidden" name="_subject" value="Nueva Inscripción - Formulario">
-            <input type="hidden" name="_next" value="https://teams.microsoft.com/l/meetup-join/19%3ameeting_ZWNiYzI3NjQtMTdhOS00NWQyLWIwNjktNTkyMDkzN2IzNTFh%40thread.v2/0?context=%7b%22Tid%22%3a%228e4207d9-5a8b-437f-9ad3-46b19c71ca6b%22%2c%22Oid%22%3a%22e07a2653-7fd4-4c08-b364-30bc3d341cb6%22%7d"> <!-- Enlace de la clase -->
+            <input type="hidden" name="_next" value="https://sistema-formularios-production.up.railway.app/asistenciapres.html"> <!-- Enlace de la clase -->
 
             
             <div class="form-group">
@@ -38,7 +38,7 @@
             <div class="form-group">
                 <label for="clase">Clase:</label>
                 <select id="clase" name="clase" readonly required>
-                    <option value="Stroke / IAM">Stroke / IAM</option>
+                    <option value="Ausentismo">Ausentismo</option>
                 </select>
             </div>
 
@@ -68,10 +68,10 @@
     <script src="/js/auth.js"></script>
         <script>
     // Configuración de fecha y hora de APERTURA
-    const fechaApertura = new Date('2026-02-24T09:50:00-03:00'); // 24 de febrero de 2026 a las 09:50hs (Hora Argentina)
+    const fechaApertura = new Date('2026-02-26T10:00:00-03:00'); // 26 de enero de 2026 a las 10:00hs (Hora Argentina)
     
     // Configuración de fecha y hora de CIERRE
-    const fechaCierre = new Date('2026-02-24T13:00:00-03:00'); // 24 de febrero de 2026 a las 13:00hs (Hora Argentina)
+    const fechaCierre = new Date('2026-02-26T12:00:00-03:00'); // 26 de enero de 2026 a las 12:00hs (Hora Argentina)
 
     // Función para formatear fecha en español
     function formatearFecha(fecha) {

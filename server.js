@@ -64,7 +64,14 @@ app.get('/api/debug/routes', (req, res) => {
             '/api/material/solicitudes',
             '/api/admin/usuarios',
             '/api/debug/mongo',
-            '/api/env-check'
+            '/api/env-check',
+            '/api/clases-historicas',
+            '/api/material-historico/solicitudes',
+            '/api/tiempo-clase/actualizar (POST)',
+            '/api/tiempo-clase (GET)',
+            '/api/tiempo-clase/estadisticas (GET)',
+            '/api/tiempo-clase/usuario/:usuarioId (GET)',
+            '/api/tiempo-clase/init (GET)'
         ],
         timestamp: new Date().toISOString()
     });
@@ -433,9 +440,23 @@ app.get('/api/inscripciones/estadisticas', async (req, res) => {
         const ultimas = inscripciones.slice(0, 10).map(insc => {
             let fechaFormateada = 'Fecha no disponible';
             if (insc.fecha instanceof Date) {
-                fechaFormateada = insc.fecha.toLocaleString({hour12: false}, 'es-AR');
+                fechaFormateada = insc.fecha.toLocaleString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
             } else if (typeof insc.fecha === 'string') {
-                fechaFormateada = new Date(insc.fecha).toLocaleString({hour12: false}, 'es-AR');
+                fechaFormateada = new Date(insc.fecha).toLocaleString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
             }
             
             return {
@@ -466,565 +487,7 @@ app.get('/api/inscripciones/estadisticas', async (req, res) => {
     }
 });
 
-// ==================== RUTAS DE MATERIAL ====================
-app.post('/api/material/solicitudes', async (req, res) => {
-    try {
-        const userHeader = req.headers['user-id'];
-        
-        console.log('📦 POST /material/solicitudes - Headers user-id:', userHeader);
-        
-        if (!userHeader) {
-            console.error('❌ No hay user-id en headers');
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado - Falta user-id en headers' 
-            });
-        }
-        
-        const { clase, email } = req.body;
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar si ya solicitó material para esta clase
-        const solicitudExistente = await db.collection('material').findOne({
-            usuarioId: new ObjectId(userHeader),
-            clase: clase
-        });
-        
-        if (solicitudExistente) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Ya has solicitado material para esta clase' 
-            });
-        }
-        
-        // Crear nueva solicitud
-        const nuevaSolicitud = {
-            usuarioId: new ObjectId(userHeader),
-            clase,
-            email,
-            fechaSolicitud: new Date(),
-            hour12: false
-        };
-        
-        await db.collection('material').insertOne(nuevaSolicitud);
-        
-        res.json({ 
-            success: true, 
-            message: 'Solicitud de material registrada exitosamente' 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error registrando solicitud de material:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-app.get('/api/material/solicitudes', async (req, res) => {
-    try {
-        const userHeader = req.headers['user-id'];
-        
-        console.log('📦 GET /material/solicitudes - Headers user-id:', userHeader);
-        
-        if (!userHeader) {
-            console.error('❌ No hay user-id en headers');
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado - Falta user-id en headers' 
-            });
-        }
-        
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Validar que el usuario existe
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario) {
-            console.error('❌ Usuario no encontrado con ID:', userHeader);
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Usuario no encontrado' 
-            });
-        }
-        
-        console.log('✅ Usuario válido:', usuario.apellidoNombre);
-        
-        // Si es admin, puede ver todas las solicitudes
-        // Si no es admin, solo puede ver las suyas
-        let matchCriteria = { usuarioId: new ObjectId(userHeader) };
-        
-        if (usuario.role === 'admin') {
-            console.log('👑 Admin: viendo TODAS las solicitudes');
-            matchCriteria = {}; // Admin ve todo
-        }
-        
-        // Obtener solicitudes
-        const solicitudes = await db.collection('material')
-            .aggregate([
-                {
-                    $match: matchCriteria
-                },
-                {
-                    $lookup: {
-                        from: 'usuarios',
-                        localField: 'usuarioId',
-                        foreignField: '_id',
-                        as: 'usuario'
-                    }
-                },
-                { $unwind: '$usuario' }
-            ])
-            .toArray();
-        
-        console.log(`📊 Encontradas ${solicitudes.length} solicitudes`);
-        
-        res.json({ 
-            success: true, 
-            data: solicitudes 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error obteniendo solicitudes de material:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-app.delete('/api/material/solicitudes/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const userHeader = req.headers['user-id'];
-        
-        console.log('🗑️ Eliminando solicitud de material ID:', id);
-        console.log('👤 Usuario que solicita:', userHeader);
-        
-        if (!userHeader) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado' 
-            });
-        }
-        
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que la solicitud existe
-        const solicitud = await db.collection('material').findOne({ 
-            _id: new ObjectId(id) 
-        });
-        
-        if (!solicitud) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Solicitud no encontrada' 
-            });
-        }
-        
-        // Verificar permisos: solo admin o el propio usuario puede eliminar
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Usuario no válido' 
-            });
-        }
-        
-        // Solo admin puede eliminar cualquier solicitud
-        // Usuarios normales solo pueden eliminar sus propias solicitudes
-        const esAdmin = usuario.role === 'admin';
-        const esPropietario = solicitud.usuarioId.toString() === userHeader;
-        
-        if (!esAdmin && !esPropietario) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'No tienes permisos para eliminar esta solicitud' 
-            });
-        }
-        
-        // Eliminar la solicitud
-        const result = await db.collection('material').deleteOne({ 
-            _id: new ObjectId(id) 
-        });
-        
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Solicitud no encontrada' 
-            });
-        }
-        
-        console.log('✅ Solicitud eliminada:', id);
-        
-        res.json({ 
-            success: true, 
-            message: 'Solicitud eliminada correctamente' 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error eliminando solicitud de material:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-app.get('/api/material/estadisticas', async (req, res) => {
-    try {
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Obtener todas las solicitudes con datos del usuario
-        const solicitudes = await db.collection('material')
-            .aggregate([
-                {
-                    $lookup: {
-                        from: 'usuarios',
-                        localField: 'usuarioId',
-                        foreignField: '_id',
-                        as: 'usuario'
-                    }
-                },
-                { $unwind: '$usuario' }
-            ])
-            .toArray();
-        
-        // Calcular estadísticas
-        const hoy = new Date().toISOString().split('T')[0];
-        const solicitudesHoy = solicitudes.filter(s => 
-            s.fechaSolicitud && s.fechaSolicitud.split('T')[0] === hoy
-        ).length;
-        
-        // Calcular clase más popular
-        const clasesCount = {};
-        solicitudes.forEach(s => {
-            if (s.clase) {
-                clasesCount[s.clase] = (clasesCount[s.clase] || 0) + 1;
-            }
-        });
-        
-        let clasePopular = '-';
-        let maxCount = 0;
-        Object.entries(clasesCount).forEach(([clase, count]) => {
-            if (count > maxCount) {
-                maxCount = count;
-                clasePopular = clase;
-            }
-        });
-        
-        res.json({ 
-            success: true, 
-            data: {
-                total: solicitudes.length,
-                hoy: solicitudesHoy,
-                clasePopular: clasePopular,
-                porClase: clasesCount
-            }
-        });
-        
-    } catch (error) {
-        console.error('❌ Error obteniendo estadísticas de material:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-app.get('/api/material/init', async (req, res) => {
-    try {
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar/crear colección de material
-        const collectionExists = await db.listCollections({ name: 'material' }).hasNext();
-        
-        if (!collectionExists) {
-            console.log('📝 Creando colección "material"...');
-            await db.createCollection('material');
-            
-            await db.collection('material').createIndex({ usuarioId: 1, clase: 1 });
-            await db.collection('material').createIndex({ fechaSolicitud: -1 });
-            
-            console.log('✅ Colección "material" creada con índices');
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Sistema de material inicializado',
-            collectionExists: collectionExists
-        });
-        
-    } catch (error) {
-        console.error('❌ Error inicializando material:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// ==================== RUTAS DE MATERIAL HISTÓRICO ====================
-
-// Obtener todas las clases históricas
-app.get('/api/clases-historicas', async (req, res) => {
-    try {
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        const clases = await db.collection('clases_historicas')
-            .find({ activa: { $ne: false } })
-            .sort({ fechaClase: -1 })
-            .toArray();
-        
-        console.log(`📚 ${clases.length} clases históricas obtenidas`);
-        
-        res.json({ 
-            success: true, 
-            data: clases 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error obteniendo clases históricas:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Guardar solicitud de material histórico
-app.post('/api/material-historico/solicitudes', async (req, res) => {
-    try {
-        const userHeader = req.headers['user-id'];
-        
-        console.log('📦 POST /material-historico/solicitudes - Headers user-id:', userHeader);
-        
-        if (!userHeader) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado - Falta user-id en headers' 
-            });
-        }
-        
-        const { claseId, claseNombre, email, youtube, powerpoint } = req.body;
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que el usuario existe
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Usuario no encontrado' 
-            });
-        }
-        
-        // Verificar si ya solicitó esta clase
-        const solicitudExistente = await db.collection('material_historico').findOne({
-            usuarioId: new ObjectId(userHeader),
-            claseId: claseId
-        });
-        
-        if (solicitudExistente) {
-            // Si ya existe, devolvemos los enlaces pero no creamos duplicado
-            return res.json({ 
-                success: true, 
-                message: 'Material ya solicitado anteriormente',
-                data: solicitudExistente,
-                exists: true
-            });
-        }
-        
-        // Crear nueva solicitud
-        const nuevaSolicitud = {
-            usuarioId: new ObjectId(userHeader),
-            claseId: claseId,
-            claseNombre: claseNombre,
-            email: email,
-            youtube: youtube,
-            powerpoint: powerpoint,
-            fechaSolicitud: new Date()
-        };
-        
-        await db.collection('material_historico').insertOne(nuevaSolicitud);
-        
-        res.json({ 
-            success: true, 
-            message: 'Solicitud de material histórico registrada exitosamente',
-            data: nuevaSolicitud
-        });
-        
-    } catch (error) {
-        console.error('❌ Error registrando solicitud de material histórico:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Obtener solicitudes de material histórico
-app.get('/api/material-historico/solicitudes', async (req, res) => {
-    try {
-        const userHeader = req.headers['user-id'];
-        
-        console.log('📦 GET /material-historico/solicitudes - Headers user-id:', userHeader);
-        
-        if (!userHeader) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado - Falta user-id en headers' 
-            });
-        }
-        
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que el usuario existe
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Usuario no encontrado' 
-            });
-        }
-        
-        // Si es admin, puede ver todas las solicitudes
-        // Si no es admin, solo puede ver las suyas
-        let matchCriteria = { usuarioId: new ObjectId(userHeader) };
-        
-        if (usuario.role === 'admin') {
-            console.log('👑 Admin: viendo TODAS las solicitudes de material histórico');
-            matchCriteria = {};
-        }
-        
-        // Obtener solicitudes con datos del usuario
-        const solicitudes = await db.collection('material_historico')
-            .aggregate([
-                {
-                    $match: matchCriteria
-                },
-                {
-                    $lookup: {
-                        from: 'usuarios',
-                        localField: 'usuarioId',
-                        foreignField: '_id',
-                        as: 'usuario'
-                    }
-                },
-                { $unwind: '$usuario' },
-                { $sort: { fechaSolicitud: -1 } }
-            ])
-            .toArray();
-        
-        console.log(`📊 Encontradas ${solicitudes.length} solicitudes de material histórico`);
-        
-        res.json({ 
-            success: true, 
-            data: solicitudes 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error obteniendo solicitudes de material histórico:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Inicializar colección de material histórico
-app.get('/api/material-historico/init', async (req, res) => {
-    try {
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar/crear colección de clases históricas
-        const clasesHistoricasExists = await db.listCollections({ name: 'clases_historicas' }).hasNext();
-        if (!clasesHistoricasExists) {
-            console.log('📝 Creando colección "clases_historicas"...');
-            await db.createCollection('clases_historicas');
-            
-            await db.collection('clases_historicas').createIndex({ fechaClase: -1 });
-            await db.collection('clases_historicas').createIndex({ nombre: 1 });
-            
-            // Insertar algunas clases de ejemplo
-            const clasesEjemplo = [
-                {
-                    nombre: "Telemetría Avanzada",
-                    descripcion: "Clase grabada sobre monitoreo cardíaco y telemetría",
-                    fechaClase: new Date('2026-02-10'),
-                    enlaces: {
-                        youtube: "https://www.youtube.com/watch?v=telemetria2026",
-                        powerpoint: "https://docs.google.com/presentation/d/1-telemetria"
-                    },
-                    activa: true,
-                    fechaCreacion: new Date()
-                },
-                {
-                    nombre: "Rotación de Personal en Salud",
-                    descripcion: "Estrategias y mejores prácticas para rotación de personal",
-                    fechaClase: new Date('2026-02-11'),
-                    enlaces: {
-                        youtube: "https://www.youtube.com/watch?v=rotacion2026",
-                        powerpoint: "https://docs.google.com/presentation/d/1-rotacion"
-                    },
-                    activa: true,
-                    fechaCreacion: new Date()
-                }
-            ];
-            
-            await db.collection('clases_historicas').insertMany(clasesEjemplo);
-            console.log('✅ Clases de ejemplo insertadas');
-        }
-        
-        // Verificar/crear colección de material histórico
-        const materialHistoricoExists = await db.listCollections({ name: 'material_historico' }).hasNext();
-        if (!materialHistoricoExists) {
-            console.log('📝 Creando colección "material_historico"...');
-            await db.createCollection('material_historico');
-            
-            await db.collection('material_historico').createIndex({ usuarioId: 1, claseId: 1 });
-            await db.collection('material_historico').createIndex({ fechaSolicitud: -1 });
-            
-            console.log('✅ Colección "material_historico" creada con índices');
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Sistema de material histórico inicializado',
-            clasesHistoricas: clasesHistoricasExists ? 'existe' : 'creada',
-            materialHistorico: materialHistoricoExists ? 'existe' : 'creada'
-        });
-        
-    } catch (error) {
-        console.error('❌ Error inicializando material histórico:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// ==================== RUTAS DE CLASES HISTÓRICAS (GESTIÓN VISUAL) ====================
+// ==================== RUTAS DE CLASES HISTÓRICAS ====================
 
 // Obtener todas las clases históricas
 app.get('/api/clases-historicas', async (req, res) => {
@@ -1032,12 +495,12 @@ app.get('/api/clases-historicas', async (req, res) => {
         console.log('📥 GET /api/clases-historicas');
         const db = await mongoDB.getDatabaseSafe('formulario');
         
-        const clases = await db.collection('clases_historicas')
+        const clases = await db.collection('clases')
             .find({})
             .sort({ fechaClase: -1 })
             .toArray();
         
-        console.log(`✅ ${clases.length} clases históricas obtenidas`);
+        console.log(`✅ ${clases.length} clases obtenidas`);
         
         res.json({ 
             success: true, 
@@ -1045,7 +508,7 @@ app.get('/api/clases-historicas', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ Error obteniendo clases históricas:', error);
+        console.error('❌ Error obteniendo clases:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Error interno del servidor',
@@ -1069,7 +532,7 @@ app.get('/api/clases-historicas/:id', async (req, res) => {
         
         const db = await mongoDB.getDatabaseSafe('formulario');
         
-        const clase = await db.collection('clases_historicas').findOne({ 
+        const clase = await db.collection('clases').findOne({ 
             _id: new ObjectId(id) 
         });
         
@@ -1121,34 +584,71 @@ app.post('/api/clases-historicas', async (req, res) => {
             });
         }
         
-        const { nombre, descripcion, fechaClase, enlaces, activa, instructores, tags } = req.body;
+        const { nombre, descripcion, fechaClase, enlaces, instructores, tags, estado } = req.body;
         
         // Validaciones básicas
-        if (!nombre || !fechaClase || !enlaces?.youtube || !enlaces?.powerpoint) {
+        if (!nombre || !fechaClase) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Faltan campos requeridos' 
+                message: 'Faltan campos requeridos: nombre y fecha son obligatorios' 
             });
         }
+        
+        console.log('📅 Fecha recibida (ART - string):', fechaClase);
+        
+        // CORRECCIÓN: Parsear la fecha y sumar 3 horas para convertir ART a UTC
+        let fecha;
+        
+        if (fechaClase.includes('T')) {
+            // Formato esperado: YYYY-MM-DDTHH:mm:ss
+            const [fechaPart, horaPart] = fechaClase.split('T');
+            const [year, month, day] = fechaPart.split('-').map(Number);
+            const [hour, minute] = horaPart.split(':').map(Number);
+            
+            // Verificar que los valores sean números válidos
+            if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour) || isNaN(minute)) {
+                throw new Error('Formato de fecha inválido');
+            }
+            
+            // Sumar 3 horas para convertir de ART a UTC
+            // Argentina es GMT-3, por lo que ART = UTC-3
+            // Para convertir ART a UTC: UTC = ART + 3
+            const horaUTC = hour + 3;
+            
+            // Crear fecha en UTC
+            // Nota: Los meses en JavaScript van de 0-11, por eso restamos 1 al mes
+            fecha = new Date(Date.UTC(year, month - 1, day, horaUTC, minute, 0));
+            
+            console.log(`⏰ Hora ART: ${hour}:${minute} -> Hora UTC: ${horaUTC}:${minute}`);
+        } else {
+            // Si solo viene fecha, asumir 00:00 ART
+            const [year, month, day] = fechaClase.split('-').map(Number);
+            fecha = new Date(Date.UTC(year, month - 1, day, 3, 0, 0)); // 00:00 ART = 03:00 UTC
+        }
+        
+        console.log('📅 Fecha guardada (UTC):', fecha.toISOString());
+        
+        // Determinar el estado
+        let estadoFinal = estado || 'activa';
+        const activaBool = estadoFinal === 'activa' || estadoFinal === 'publicada';
         
         const nuevaClase = {
             nombre,
             descripcion: descripcion || '',
-            fechaClase: new Date(fechaClase),
-            enlaces: {
-                youtube: enlaces.youtube,
-                powerpoint: enlaces.powerpoint
-            },
-            activa: activa !== false,
+            fechaClase: fecha,
+            enlaces: enlaces || { youtube: '', powerpoint: '' },
+            activa: activaBool,
+            estado: estadoFinal,
             instructores: instructores || [],
             tags: tags || [],
             fechaCreacion: new Date(),
             creadoPor: new ObjectId(userHeader)
         };
         
-        const result = await db.collection('clases_historicas').insertOne(nuevaClase);
+        const result = await db.collection('clases').insertOne(nuevaClase);
         
         console.log('✅ Clase creada:', result.insertedId);
+        console.log('📊 Estado guardado:', estadoFinal);
         
         res.json({ 
             success: true, 
@@ -1194,33 +694,66 @@ app.put('/api/clases-historicas/:id', async (req, res) => {
             });
         }
         
-        const { nombre, descripcion, fechaClase, enlaces, activa, instructores, tags } = req.body;
+        const { nombre, descripcion, fechaClase, enlaces, instructores, tags, estado } = req.body;
         
         // Validaciones básicas
-        if (!nombre || !fechaClase || !enlaces?.youtube || !enlaces?.powerpoint) {
+        if (!nombre || !fechaClase) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Faltan campos requeridos' 
+                message: 'Faltan campos requeridos: nombre y fecha son obligatorios' 
             });
         }
+        
+        console.log('📅 Fecha actualización recibida (ART - string):', fechaClase);
+        
+        // CORRECCIÓN: Parsear la fecha y sumar 3 horas para convertir ART a UTC
+        let fecha;
+        
+        if (fechaClase.includes('T')) {
+            // Formato esperado: YYYY-MM-DDTHH:mm:ss
+            const [fechaPart, horaPart] = fechaClase.split('T');
+            const [year, month, day] = fechaPart.split('-').map(Number);
+            const [hour, minute] = horaPart.split(':').map(Number);
+            
+            // Verificar que los valores sean números válidos
+            if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour) || isNaN(minute)) {
+                throw new Error('Formato de fecha inválido');
+            }
+            
+            // Sumar 3 horas para convertir de ART a UTC
+            const horaUTC = hour + 3;
+            
+            // Crear fecha en UTC
+            fecha = new Date(Date.UTC(year, month - 1, day, horaUTC, minute, 0));
+            
+            console.log(`⏰ Hora ART: ${hour}:${minute} -> Hora UTC: ${horaUTC}:${minute}`);
+        } else {
+            // Si solo viene fecha, asumir 00:00 ART
+            const [year, month, day] = fechaClase.split('-').map(Number);
+            fecha = new Date(Date.UTC(year, month - 1, day, 3, 0, 0));
+        }
+        
+        console.log('📅 Fecha guardada (UTC):', fecha.toISOString());
+        
+        // Determinar el estado
+        let estadoFinal = estado || 'activa';
+        const activaBool = estadoFinal === 'activa' || estadoFinal === 'publicada';
         
         const updateData = {
             $set: {
                 nombre,
                 descripcion: descripcion || '',
-                fechaClase: new Date(fechaClase),
-                enlaces: {
-                    youtube: enlaces.youtube,
-                    powerpoint: enlaces.powerpoint
-                },
-                activa: activa !== false,
+                fechaClase: fecha,
+                enlaces: enlaces || { youtube: '', powerpoint: '' },
+                activa: activaBool,
+                estado: estadoFinal,
                 instructores: instructores || [],
                 tags: tags || [],
                 fechaActualizacion: new Date()
             }
         };
         
-        const result = await db.collection('clases_historicas').updateOne(
+        const result = await db.collection('clases').updateOne(
             { _id: new ObjectId(id) },
             updateData
         );
@@ -1233,6 +766,7 @@ app.put('/api/clases-historicas/:id', async (req, res) => {
         }
         
         console.log('✅ Clase actualizada:', id);
+        console.log('📊 Estado actualizado:', estadoFinal);
         
         res.json({ 
             success: true, 
@@ -1277,7 +811,7 @@ app.delete('/api/clases-historicas/:id', async (req, res) => {
             });
         }
         
-        const result = await db.collection('clases_historicas').deleteOne({
+        const result = await db.collection('clases').deleteOne({
             _id: new ObjectId(id)
         });
         
@@ -1305,7 +839,7 @@ app.delete('/api/clases-historicas/:id', async (req, res) => {
     }
 });
 
-// ==================== RUTAS DE MATERIAL HISTÓRICO (SOLICITUDES) ====================
+// ==================== RUTAS DE MATERIAL HISTÓRICO ====================
 
 // Guardar solicitud de material histórico
 app.post('/api/material-historico/solicitudes', async (req, res) => {
@@ -1337,7 +871,7 @@ app.post('/api/material-historico/solicitudes', async (req, res) => {
         }
         
         // Verificar si ya solicitó esta clase
-        const solicitudExistente = await db.collection('material_historico').findOne({
+        const solicitudExistente = await db.collection('solicitudMaterial').findOne({
             usuarioId: new ObjectId(userHeader),
             claseId: claseId
         });
@@ -1363,9 +897,7 @@ app.post('/api/material-historico/solicitudes', async (req, res) => {
             fechaSolicitud: new Date()
         };
         
-        await db.collection('material_historico').insertOne(nuevaSolicitud);
-        
-        console.log('✅ Solicitud guardada:', nuevaSolicitud._id);
+        await db.collection('solicitudMaterial').insertOne(nuevaSolicitud);
         
         res.json({ 
             success: true, 
@@ -1421,7 +953,7 @@ app.get('/api/material-historico/solicitudes', async (req, res) => {
         }
         
         // Obtener solicitudes con datos del usuario
-        const solicitudes = await db.collection('material_historico')
+        const solicitudes = await db.collection('solicitudMaterial')
             .aggregate([
                 {
                     $match: matchCriteria
@@ -1448,79 +980,6 @@ app.get('/api/material-historico/solicitudes', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Error obteniendo solicitudes de material histórico:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Inicializar colección de material histórico
-app.get('/api/material-historico/init', async (req, res) => {
-    try {
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar/crear colección de clases históricas
-        const clasesHistoricasExists = await db.listCollections({ name: 'clases_historicas' }).hasNext();
-        if (!clasesHistoricasExists) {
-            console.log('📝 Creando colección "clases_historicas"...');
-            await db.createCollection('clases_historicas');
-            
-            await db.collection('clases_historicas').createIndex({ fechaClase: -1 });
-            await db.collection('clases_historicas').createIndex({ nombre: 1 });
-            
-            // Insertar algunas clases de ejemplo
-            const clasesEjemplo = [
-                {
-                    nombre: "Telemetría Avanzada",
-                    descripcion: "Clase grabada sobre monitoreo cardíaco y telemetría",
-                    fechaClase: new Date('2026-02-10'),
-                    enlaces: {
-                        youtube: "https://www.youtube.com/watch?v=telemetria2026",
-                        powerpoint: "https://docs.google.com/presentation/d/1-telemetria"
-                    },
-                    activa: true,
-                    fechaCreacion: new Date()
-                },
-                {
-                    nombre: "Rotación de Personal en Salud",
-                    descripcion: "Estrategias y mejores prácticas para rotación de personal",
-                    fechaClase: new Date('2026-02-11'),
-                    enlaces: {
-                        youtube: "https://www.youtube.com/watch?v=rotacion2026",
-                        powerpoint: "https://docs.google.com/presentation/d/1-rotacion"
-                    },
-                    activa: true,
-                    fechaCreacion: new Date()
-                }
-            ];
-            
-            await db.collection('clases_historicas').insertMany(clasesEjemplo);
-            console.log('✅ Clases de ejemplo insertadas');
-        }
-        
-        // Verificar/crear colección de material histórico
-        const materialHistoricoExists = await db.listCollections({ name: 'material_historico' }).hasNext();
-        if (!materialHistoricoExists) {
-            console.log('📝 Creando colección "material_historico"...');
-            await db.createCollection('material_historico');
-            
-            await db.collection('material_historico').createIndex({ usuarioId: 1, claseId: 1 });
-            await db.collection('material_historico').createIndex({ fechaSolicitud: -1 });
-            
-            console.log('✅ Colección "material_historico" creada con índices');
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Sistema de material histórico inicializado',
-            clasesHistoricas: clasesHistoricasExists ? 'existe' : 'creada',
-            materialHistorico: materialHistoricoExists ? 'existe' : 'creada'
-        });
-        
-    } catch (error) {
-        console.error('❌ Error inicializando material histórico:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Error interno del servidor',
@@ -2012,6 +1471,367 @@ app.delete('/api/usuarios/cuenta', async (req, res) => {
     }
 });
 
+// ==================== RUTAS PARA TIEMPO EN CLASE (VERSIÓN ACUMULATIVA) ====================
+
+// Guardar o actualizar tiempo de clase (versión acumulativa)
+app.post('/api/tiempo-clase/actualizar', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        console.log('⏱️ POST /api/tiempo-clase/actualizar - Usuario:', userHeader);
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado' 
+            });
+        }
+        
+        const { claseId, claseNombre, tiempoActivo, tiempoInactivo, esFinal } = req.body;
+        
+        if (!claseId || !claseNombre || tiempoActivo === undefined || tiempoInactivo === undefined) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Faltan datos requeridos' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar que el usuario existe
+        const usuario = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuario) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Buscar si ya existe un registro para este usuario y clase
+        const filtro = {
+            usuarioId: new ObjectId(userHeader),
+            claseId: claseId
+        };
+        
+        const registroExistente = await db.collection('tiempo-en-clases').findOne(filtro);
+        
+        const ahora = new Date();
+        
+        if (registroExistente) {
+            // ACTUALIZAR: sumar los nuevos tiempos
+            const updateData = {
+                $set: {
+                    usuarioNombre: usuario.apellidoNombre,
+                    legajo: usuario.legajo,
+                    turno: usuario.turno,
+                    claseNombre: claseNombre,
+                    ultimaActualizacion: ahora
+                },
+                $inc: {
+                    tiempoActivo: tiempoActivo,
+                    tiempoInactivo: tiempoInactivo
+                }
+            };
+            
+            // Si es final, marcar como completado
+            if (esFinal) {
+                updateData.$set.finalizado = true;
+                updateData.$set.fechaFinalizacion = ahora;
+            }
+            
+            await db.collection('tiempo-en-clases').updateOne(filtro, updateData);
+            
+            console.log(`✅ Tiempo ACTUALIZADO para ${usuario.apellidoNombre} en ${claseNombre}`);
+            console.log(`   + Activo: ${tiempoActivo}s, + Inactivo: ${tiempoInactivo}s`);
+            
+        } else {
+            // CREAR NUEVO REGISTRO
+            const nuevoRegistro = {
+                usuarioId: new ObjectId(userHeader),
+                usuarioNombre: usuario.apellidoNombre,
+                legajo: usuario.legajo,
+                turno: usuario.turno,
+                claseId: claseId,
+                claseNombre: claseNombre,
+                tiempoActivo: tiempoActivo,
+                tiempoInactivo: tiempoInactivo,
+                fechaInicio: ahora,
+                ultimaActualizacion: ahora,
+                finalizado: esFinal || false
+            };
+            
+            if (esFinal) {
+                nuevoRegistro.fechaFinalizacion = ahora;
+            }
+            
+            await db.collection('tiempo-en-clases').insertOne(nuevoRegistro);
+            
+            console.log(`✅ Nuevo registro CREADO para ${usuario.apellidoNombre} en ${claseNombre}`);
+        }
+        
+        // Obtener el registro actualizado para devolverlo
+        const registroActualizado = await db.collection('tiempo-en-clases').findOne(filtro);
+        
+        res.json({ 
+            success: true, 
+            message: 'Tiempo actualizado correctamente',
+            data: registroActualizado
+        });
+        
+    } catch (error) {
+        console.error('❌ Error actualizando tiempo:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Obtener todos los tiempos (con filtros)
+app.get('/api/tiempo-clase', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        const { clase, usuario } = req.query;
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar permisos
+        const usuarioActual = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuarioActual) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Construir filtros
+        let filtro = {};
+        
+        // Si no es admin, solo ver sus propios registros
+        if (usuarioActual.role !== 'admin' && usuarioActual.role !== 'advanced') {
+            filtro.usuarioId = new ObjectId(userHeader);
+        }
+        
+        // Filtrar por clase
+        if (clase && clase !== 'todas') {
+            filtro.claseNombre = clase;
+        }
+        
+        // Filtrar por usuario específico
+        if (usuario && (usuarioActual.role === 'admin' || usuarioActual.role === 'advanced')) {
+            filtro.usuarioId = new ObjectId(usuario);
+        }
+        
+        // Obtener registros
+        const registros = await db.collection('tiempo-en-clases')
+            .find(filtro)
+            .sort({ ultimaActualizacion: -1 })
+            .toArray();
+        
+        res.json({ 
+            success: true, 
+            data: registros 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo tiempos:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Obtener estadísticas
+app.get('/api/tiempo-clase/estadisticas', async (req, res) => {
+    try {
+        const userHeader = req.headers['user-id'];
+        
+        if (!userHeader) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autenticado' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar permisos
+        const usuarioActual = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuarioActual) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        let matchStage = {};
+        if (usuarioActual.role !== 'admin' && usuarioActual.role !== 'advanced') {
+            matchStage.usuarioId = new ObjectId(userHeader);
+        }
+        
+        const pipeline = [
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: null,
+                    totalRegistros: { $sum: 1 },
+                    totalActivo: { $sum: '$tiempoActivo' },
+                    totalInactivo: { $sum: '$tiempoInactivo' },
+                    usuariosUnicos: { $addToSet: '$usuarioId' },
+                    clasesUnicas: { $addToSet: '$claseNombre' }
+                }
+            }
+        ];
+        
+        const estadisticas = await db.collection('tiempo-en-clases')
+            .aggregate(pipeline)
+            .toArray();
+        
+        const resultado = {
+            totalRegistros: estadisticas[0]?.totalRegistros || 0,
+            tiempoActivoTotal: estadisticas[0]?.totalActivo || 0,
+            tiempoInactivoTotal: estadisticas[0]?.totalInactivo || 0,
+            usuariosUnicos: estadisticas[0]?.usuariosUnicos?.length || 0,
+            clasesUnicas: estadisticas[0]?.clasesUnicas?.length || 0
+        };
+        
+        res.json({ 
+            success: true, 
+            data: resultado 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo estadísticas:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Obtener detalle de un usuario específico
+app.get('/api/tiempo-clase/usuario/:usuarioId', async (req, res) => {
+    try {
+        const { usuarioId } = req.params;
+        const userHeader = req.headers['user-id'];
+        
+        if (!userHeader || !ObjectId.isValid(usuarioId)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Solicitud inválida' 
+            });
+        }
+        
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar permisos
+        const usuarioActual = await db.collection('usuarios').findOne({ 
+            _id: new ObjectId(userHeader) 
+        });
+        
+        if (!usuarioActual) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Usuario no encontrado' 
+            });
+        }
+        
+        // Si no es admin ni avanzado, solo puede ver sus propios datos
+        if (usuarioActual.role !== 'admin' && usuarioActual.role !== 'advanced' && 
+            userHeader !== usuarioId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'No tienes permiso para ver estos datos' 
+            });
+        }
+        
+        // Obtener registros del usuario
+        const registros = await db.collection('tiempo-en-clases')
+            .find({ usuarioId: new ObjectId(usuarioId) })
+            .sort({ ultimaActualizacion: -1 })
+            .toArray();
+        
+        // Obtener información del usuario
+        const usuario = await db.collection('usuarios').findOne(
+            { _id: new ObjectId(usuarioId) },
+            { projection: { password: 0 } }
+        );
+        
+        res.json({ 
+            success: true, 
+            data: {
+                usuario: usuario,
+                registros: registros
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo detalle de usuario:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
+// Inicializar colección de tiempos (opcional)
+app.get('/api/tiempo-clase/init', async (req, res) => {
+    try {
+        const db = await mongoDB.getDatabaseSafe('formulario');
+        
+        // Verificar si la colección existe
+        const collectionExists = await db.listCollections({ name: 'tiempo-en-clases' }).hasNext();
+        
+        if (!collectionExists) {
+            console.log('📝 Creando colección "tiempo-en-clases"...');
+            await db.createCollection('tiempo-en-clases');
+            
+            // Crear índices
+            await db.collection('tiempo-en-clases').createIndex({ usuarioId: 1, claseId: 1 }, { unique: true });
+            await db.collection('tiempo-en-clases').createIndex({ usuarioId: 1 });
+            await db.collection('tiempo-en-clases').createIndex({ claseId: 1 });
+            await db.collection('tiempo-en-clases').createIndex({ ultimaActualizacion: -1 });
+            
+            console.log('✅ Colección "tiempo-en-clases" creada con índices');
+        } else {
+            console.log('✅ Colección "tiempo-en-clases" ya existe');
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Colección tiempo-en-clases verificada',
+            coleccion: collectionExists ? 'existe' : 'creada'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error inicializando colección de tiempos:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+});
+
 // ==================== INICIALIZACIÓN DE BASE DE DATOS ====================
 app.get('/api/init-db', async (req, res) => {
     try {
@@ -2020,7 +1840,7 @@ app.get('/api/init-db', async (req, res) => {
         const db = await mongoDB.getDatabaseSafe('formulario');
         
         // Verificar/Crear colecciones
-        const collections = ['usuarios', 'inscripciones', 'material', 'clases'];
+        const collections = ['usuarios', 'inscripciones', 'material', 'clases', 'solicitudMaterial', 'tiempo-en-clases'];
         
         for (const collectionName of collections) {
             const collectionExists = await db.listCollections({ name: collectionName }).hasNext();
@@ -2040,6 +1860,21 @@ app.get('/api/init-db', async (req, res) => {
                 } else if (collectionName === 'material') {
                     await db.collection(collectionName).createIndex({ usuarioId: 1, clase: 1 });
                     await db.collection(collectionName).createIndex({ fechaSolicitud: -1 });
+                    console.log(`✅ Índices creados para "${collectionName}"`);
+                } else if (collectionName === 'clases') {
+                    await db.collection(collectionName).createIndex({ fechaClase: -1 });
+                    await db.collection(collectionName).createIndex({ nombre: 1 });
+                    await db.collection(collectionName).createIndex({ estado: 1 });
+                    console.log(`✅ Índices creados para "${collectionName}"`);
+                } else if (collectionName === 'solicitudMaterial') {
+                    await db.collection(collectionName).createIndex({ usuarioId: 1, claseId: 1 });
+                    await db.collection(collectionName).createIndex({ fechaSolicitud: -1 });
+                    console.log(`✅ Índices creados para "${collectionName}"`);
+                } else if (collectionName === 'tiempo-en-clases') {
+                    await db.collection(collectionName).createIndex({ usuarioId: 1, claseId: 1 }, { unique: true });
+                    await db.collection(collectionName).createIndex({ usuarioId: 1 });
+                    await db.collection(collectionName).createIndex({ claseId: 1 });
+                    await db.collection(collectionName).createIndex({ ultimaActualizacion: -1 });
                     console.log(`✅ Índices creados para "${collectionName}"`);
                 }
                 
@@ -2077,6 +1912,7 @@ app.get('/api/init-db', async (req, res) => {
                 fechaClase: new Date('2025-12-04'),
                 fechaCierre: new Date('2025-12-04T10:00:00'),
                 activa: true,
+                estado: 'publicada',
                 instructores: ["Lic. Romina Seminario", "Lic. Mirta Díaz"]
             };
             
@@ -2116,552 +1952,6 @@ app.use('*', (req, res) => {
     }
 });
 
-// ==================== RUTAS DE MATERIAL HISTÓRICO ====================
-
-// Obtener todas las clases históricas
-app.get('/api/clases-historicas', async (req, res) => {
-    try {
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        const clases = await db.collection('clases_historicas')
-            .find({})
-            .sort({ fechaClase: -1 })
-            .toArray();
-        
-        console.log(`📚 ${clases.length} clases históricas obtenidas`);
-        
-        res.json({ 
-            success: true, 
-            data: clases 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error obteniendo clases históricas:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Crear una clase histórica (para administradores)
-app.post('/api/clases-historicas', async (req, res) => {
-    try {
-        const { nombre, descripcion, fechaClase, enlaces } = req.body;
-        const userHeader = req.headers['user-id'];
-        
-        if (!userHeader) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado' 
-            });
-        }
-        
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que el usuario es admin
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario || usuario.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Solo administradores pueden crear clases históricas' 
-            });
-        }
-        
-        // Validar datos
-        if (!nombre || !fechaClase || !enlaces || !enlaces.youtube || !enlaces.powerpoint) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Todos los campos son requeridos' 
-            });
-        }
-        
-        const nuevaClase = {
-            nombre,
-            descripcion: descripcion || '',
-            fechaClase: new Date(fechaClase),
-            enlaces: {
-                youtube: enlaces.youtube,
-                powerpoint: enlaces.powerpoint
-            },
-            fechaCreacion: new Date(),
-            creadoPor: new ObjectId(userHeader)
-        };
-        
-        const result = await db.collection('clases_historicas').insertOne(nuevaClase);
-        
-        res.json({ 
-            success: true, 
-            message: 'Clase histórica creada exitosamente',
-            data: { ...nuevaClase, _id: result.insertedId }
-        });
-        
-    } catch (error) {
-        console.error('❌ Error creando clase histórica:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Guardar solicitud de material histórico
-app.post('/api/material-historico/solicitudes', async (req, res) => {
-    try {
-        const userHeader = req.headers['user-id'];
-        
-        console.log('📦 POST /material-historico/solicitudes - Headers user-id:', userHeader);
-        
-        if (!userHeader) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado - Falta user-id en headers' 
-            });
-        }
-        
-        const { claseId, claseNombre, email, youtube, powerpoint } = req.body;
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que el usuario existe
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Usuario no encontrado' 
-            });
-        }
-        
-        // Verificar si ya solicitó esta clase
-        const solicitudExistente = await db.collection('material_historico').findOne({
-            usuarioId: new ObjectId(userHeader),
-            claseId: claseId
-        });
-        
-        if (solicitudExistente) {
-            // Si ya existe, devolvemos los enlaces pero no creamos duplicado
-            return res.json({ 
-                success: true, 
-                message: 'Material ya solicitado anteriormente',
-                data: solicitudExistente,
-                exists: true
-            });
-        }
-        
-        // Crear nueva solicitud
-        const nuevaSolicitud = {
-            usuarioId: new ObjectId(userHeader),
-            claseId: claseId,
-            claseNombre: claseNombre,
-            email: email,
-            youtube: youtube,
-            powerpoint: powerpoint,
-            fechaSolicitud: new Date()
-        };
-        
-        await db.collection('material_historico').insertOne(nuevaSolicitud);
-        
-        res.json({ 
-            success: true, 
-            message: 'Solicitud de material histórico registrada exitosamente',
-            data: nuevaSolicitud
-        });
-        
-    } catch (error) {
-        console.error('❌ Error registrando solicitud de material histórico:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Obtener solicitudes de material histórico
-app.get('/api/material-historico/solicitudes', async (req, res) => {
-    try {
-        const userHeader = req.headers['user-id'];
-        
-        console.log('📦 GET /material-historico/solicitudes - Headers user-id:', userHeader);
-        
-        if (!userHeader) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado - Falta user-id en headers' 
-            });
-        }
-        
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que el usuario existe
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Usuario no encontrado' 
-            });
-        }
-        
-        // Si es admin, puede ver todas las solicitudes
-        // Si no es admin, solo puede ver las suyas
-        let matchCriteria = { usuarioId: new ObjectId(userHeader) };
-        
-        if (usuario.role === 'admin') {
-            console.log('👑 Admin: viendo TODAS las solicitudes de material histórico');
-            matchCriteria = {};
-        }
-        
-        // Obtener solicitudes con datos del usuario
-        const solicitudes = await db.collection('material_historico')
-            .aggregate([
-                {
-                    $match: matchCriteria
-                },
-                {
-                    $lookup: {
-                        from: 'usuarios',
-                        localField: 'usuarioId',
-                        foreignField: '_id',
-                        as: 'usuario'
-                    }
-                },
-                { $unwind: '$usuario' },
-                { $sort: { fechaSolicitud: -1 } }
-            ])
-            .toArray();
-        
-        console.log(`📊 Encontradas ${solicitudes.length} solicitudes de material histórico`);
-        
-        res.json({ 
-            success: true, 
-            data: solicitudes 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error obteniendo solicitudes de material histórico:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Obtener estadísticas de material histórico
-app.get('/api/material-historico/estadisticas', async (req, res) => {
-    try {
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        const totalSolicitudes = await db.collection('material_historico').countDocuments();
-        
-        // Clases más solicitadas
-        const clasesPopulares = await db.collection('material_historico')
-            .aggregate([
-                { $group: { _id: '$claseNombre', count: { $sum: 1 } } },
-                { $sort: { count: -1 } },
-                { $limit: 5 }
-            ])
-            .toArray();
-        
-        // Solicitudes por día (últimos 30 días)
-        const fechaLimite = new Date();
-        fechaLimite.setDate(fechaLimite.getDate() - 30);
-        
-        const solicitudesPorDia = await db.collection('material_historico')
-            .aggregate([
-                { $match: { fechaSolicitud: { $gte: fechaLimite } } },
-                { 
-                    $group: { 
-                        _id: { 
-                            $dateToString: { format: '%Y-%m-%d', date: '$fechaSolicitud' } 
-                        }, 
-                        count: { $sum: 1 } 
-                    } 
-                },
-                { $sort: { _id: 1 } }
-            ])
-            .toArray();
-        
-        res.json({ 
-            success: true, 
-            data: {
-                total: totalSolicitudes,
-                clasesPopulares: clasesPopulares,
-                solicitudesPorDia: solicitudesPorDia
-            }
-        });
-        
-    } catch (error) {
-        console.error('❌ Error obteniendo estadísticas:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor' 
-        });
-    }
-});
-
-// Inicializar colección de material histórico
-app.get('/api/material-historico/init', async (req, res) => {
-    try {
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar/crear colección de clases históricas
-        const clasesHistoricasExists = await db.listCollections({ name: 'clases_historicas' }).hasNext();
-        if (!clasesHistoricasExists) {
-            console.log('📝 Creando colección "clases_historicas"...');
-            await db.createCollection('clases_historicas');
-            
-            await db.collection('clases_historicas').createIndex({ fechaClase: -1 });
-            await db.collection('clases_historicas').createIndex({ nombre: 1 });
-            
-            // Insertar algunas clases de ejemplo
-            const clasesEjemplo = [
-                {
-                    nombre: "Telemetría Avanzada",
-                    descripcion: "Clase grabada sobre monitoreo cardíaco y telemetría",
-                    fechaClase: new Date('2026-02-10'),
-                    enlaces: {
-                        youtube: "https://www.youtube.com/watch?v=ejemplo1",
-                        powerpoint: "https://docs.google.com/presentation/d/ejemplo1"
-                    },
-                    fechaCreacion: new Date()
-                },
-                {
-                    nombre: "Rotación de Personal en Salud",
-                    descripcion: "Estrategias y mejores prácticas para rotación de personal",
-                    fechaClase: new Date('2026-02-11'),
-                    enlaces: {
-                        youtube: "https://www.youtube.com/watch?v=ejemplo2",
-                        powerpoint: "https://docs.google.com/presentation/d/ejemplo2"
-                    },
-                    fechaCreacion: new Date()
-                }
-            ];
-            
-            await db.collection('clases_historicas').insertMany(clasesEjemplo);
-            console.log('✅ Clases de ejemplo insertadas');
-        }
-        
-        // Verificar/crear colección de material histórico
-        const materialHistoricoExists = await db.listCollections({ name: 'material_historico' }).hasNext();
-        if (!materialHistoricoExists) {
-            console.log('📝 Creando colección "material_historico"...');
-            await db.createCollection('material_historico');
-            
-            await db.collection('material_historico').createIndex({ usuarioId: 1, claseId: 1 });
-            await db.collection('material_historico').createIndex({ fechaSolicitud: -1 });
-            await db.collection('material_historico').createIndex({ claseId: 1 });
-            
-            console.log('✅ Colección "material_historico" creada con índices');
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Sistema de material histórico inicializado',
-            clasesHistoricas: clasesHistoricasExists ? 'existe' : 'creada',
-            materialHistorico: materialHistoricoExists ? 'existe' : 'creada'
-        });
-        
-    } catch (error) {
-        console.error('❌ Error inicializando material histórico:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Crear nueva clase histórica
-app.post('/api/clases-historicas', async (req, res) => {
-    try {
-        const userHeader = req.headers['user-id'];
-        
-        if (!userHeader) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'No autenticado' 
-            });
-        }
-        
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que es admin
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario || usuario.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Solo administradores pueden crear clases' 
-            });
-        }
-        
-        const { nombre, descripcion, fechaClase, enlaces, activa, instructores, tags } = req.body;
-        
-        const nuevaClase = {
-            nombre,
-            descripcion: descripcion || '',
-            fechaClase: new Date(fechaClase),
-            enlaces,
-            activa: activa !== false,
-            instructores: instructores || [],
-            tags: tags || [],
-            fechaCreacion: new Date(),
-            creadoPor: new ObjectId(userHeader)
-        };
-        
-        const result = await db.collection('clases_historicas').insertOne(nuevaClase);
-        
-        res.json({ 
-            success: true, 
-            message: 'Clase creada exitosamente',
-            data: { ...nuevaClase, _id: result.insertedId }
-        });
-        
-    } catch (error) {
-        console.error('❌ Error creando clase:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Actualizar clase histórica
-app.put('/api/clases-historicas/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const userHeader = req.headers['user-id'];
-        
-        if (!userHeader || !ObjectId.isValid(id)) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Solicitud inválida' 
-            });
-        }
-        
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que es admin
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario || usuario.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Solo administradores pueden actualizar clases' 
-            });
-        }
-        
-        const { nombre, descripcion, fechaClase, enlaces, activa, instructores, tags } = req.body;
-        
-        const updateData = {
-            $set: {
-                nombre,
-                descripcion,
-                fechaClase: new Date(fechaClase),
-                enlaces,
-                activa: activa !== false,
-                instructores: instructores || [],
-                tags: tags || [],
-                fechaActualizacion: new Date()
-            }
-        };
-        
-        const result = await db.collection('clases_historicas').updateOne(
-            { _id: new ObjectId(id) },
-            updateData
-        );
-        
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Clase no encontrada' 
-            });
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Clase actualizada exitosamente'
-        });
-        
-    } catch (error) {
-        console.error('❌ Error actualizando clase:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
-// Eliminar clase histórica
-app.delete('/api/clases-historicas/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const userHeader = req.headers['user-id'];
-        
-        if (!userHeader || !ObjectId.isValid(id)) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Solicitud inválida' 
-            });
-        }
-        
-        const db = await mongoDB.getDatabaseSafe('formulario');
-        
-        // Verificar que es admin
-        const usuario = await db.collection('usuarios').findOne({ 
-            _id: new ObjectId(userHeader) 
-        });
-        
-        if (!usuario || usuario.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Solo administradores pueden eliminar clases' 
-            });
-        }
-        
-        const result = await db.collection('clases_historicas').deleteOne({
-            _id: new ObjectId(id)
-        });
-        
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Clase no encontrada' 
-            });
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Clase eliminada exitosamente'
-        });
-        
-    } catch (error) {
-        console.error('❌ Error eliminando clase:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor',
-            error: error.message 
-        });
-    }
-});
-
 // ==================== INICIAR SERVIDOR ====================
 async function startServer() {
     try {
@@ -2684,6 +1974,7 @@ async function startServer() {
             console.log(`🏥 Health: /api/health`);
             console.log(`🧪 Test: /api/test/simple`);
             console.log(`🔄 Init DB: /api/init-db`);
+            console.log(`⏱️ Tiempo clase (acumulativo): /api/tiempo-clase`);
             console.log('==========================================\n');
         });
         
