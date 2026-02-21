@@ -148,8 +148,18 @@ class MaterialHistorico {
             const result = await response.json();
             
             if (result.success && result.data) {
-                this.clasesHistoricas = result.data.filter(clase => clase.activa !== false);
-                console.log(`✅ ${this.clasesHistoricas.length} Material de clases cargadas`);
+                // 🔥 CORRECCIÓN: Filtrar solo las clases con estado 'publicada'
+                this.clasesHistoricas = result.data.filter(clase => 
+                    clase.estado === 'publicada' || 
+                    (clase.activa === true && !clase.estado) // Compatibilidad con datos antiguos
+                );
+                
+                console.log(`✅ ${this.clasesHistoricas.length} clases publicadas cargadas`);
+                
+                // Mostrar las clases cargadas para debug
+                this.clasesHistoricas.forEach(clase => {
+                    console.log(`📚 Clase: ${clase.nombre} - Estado: ${clase.estado || (clase.activa ? 'activa (legacy)' : 'inactiva')}`);
+                });
                 
                 this.procesarAnosDisponibles();
                 this.llenarSelectorAnos();
@@ -162,6 +172,41 @@ class MaterialHistorico {
             this.mostrarMensaje('Error al cargar clases. Usando datos de ejemplo.', 'info');
             this.cargarClasesEjemplo();
         }
+    }
+
+    // Método de ejemplo por si falla la conexión
+    cargarClasesEjemplo() {
+        // Datos de ejemplo para pruebas
+        this.clasesHistoricas = [
+            {
+                _id: '1',
+                nombre: 'Stroke / IAM',
+                descripcion: 'Clase sobre Stroke e IAM',
+                fechaClase: '2026-02-24T10:00:00',
+                enlaces: {
+                    youtube: 'https://youtube.com/watch?v=ejemplo1',
+                    powerpoint: 'https://docs.google.com/presentation/d/ejemplo1'
+                },
+                estado: 'publicada',
+                instructores: ['Lic. Daniel de la Rosa', 'Lic. Liliana Areco']
+            },
+            {
+                _id: '2',
+                nombre: 'CoPaP',
+                descripcion: 'Clase sobre CoPaP',
+                fechaClase: '2026-02-25T15:30:00',
+                enlaces: {
+                    youtube: 'https://youtube.com/watch?v=ejemplo2',
+                    powerpoint: 'https://docs.google.com/presentation/d/ejemplo2'
+                },
+                estado: 'publicada',
+                instructores: ['Lic. Karina Raihy', 'Enf. Sara Aiduc']
+            }
+        ];
+        
+        console.log(`📚 ${this.clasesHistoricas.length} clases de ejemplo cargadas`);
+        this.procesarAnosDisponibles();
+        this.llenarSelectorAnos();
     }
 
     procesarAnosDisponibles() {
@@ -329,7 +374,7 @@ class MaterialHistorico {
             return pasaAno && pasaMes;
         });
         
-        console.log(`🔍 ${this.clasesFiltradas.length} clases encontradas para los filtros seleccionados`);
+        console.log(`🔍 ${this.clasesFiltradas.length} clases publicadas encontradas para los filtros seleccionados`);
         
         if (this.clasesFiltradas.length === 0) {
             // No hay clases para este período
@@ -410,7 +455,10 @@ class MaterialHistorico {
                 });
             }
             
-            option.textContent = `${clase.nombre} (${fechaTexto})`;
+            // Mostrar el estado de la clase (opcional, para debug)
+            const estadoTexto = clase.estado ? ` [${clase.estado}]` : '';
+            
+            option.textContent = `${clase.nombre} (${fechaTexto})${estadoTexto}`;
             option.dataset.nombre = clase.nombre;
             option.dataset.descripcion = clase.descripcion || '';
             option.dataset.fecha = clase.fechaClase;
@@ -421,7 +469,7 @@ class MaterialHistorico {
             select.appendChild(option);
         });
         
-        console.log(`✅ Selector de clases cargado con ${this.clasesFiltradas.length} opciones (ordenadas alfabéticamente)`);
+        console.log(`✅ Selector de clases cargado con ${this.clasesFiltradas.length} opciones (solo clases publicadas)`);
         
         // Resetear buscador
         const buscador = document.getElementById('buscadorClases');
