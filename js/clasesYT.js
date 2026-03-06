@@ -9,8 +9,8 @@ console.log('🎥 clasesYT.js - Versión FINAL (todo dinámico)');
 // ============================================
 const CONFIG = {
     // 🔴 CAMBIA SOLO ESTOS DOS VALORES para cada nueva clase
-    VIDEO_ID: '49jVFSmAf-g',      // ID del video de YouTube
-    CLASE_NOMBRE: 'Registro Informatizado y Auditoría', // Nombre visible de la clase
+    VIDEO_ID: 'cb12KmMMDJA',      // ID del video de YouTube
+    CLASE_NOMBRE: 'Stroke / IAM', // Nombre visible de la clase
     
     // ⚙️ Configuración técnica (no tocar)
     DISPLAY_UPDATE_INTERVAL: 1000,

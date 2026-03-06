@@ -10,18 +10,6 @@ class CalendarManager {
         return [
             {
                 id: 1,
-                title: "Registro informatizado y auditoría",
-                date: "2026-02-05",
-                displayDate: "05/02/2026",
-                time: "10:00",
-                displayTime: "10:00hs",
-                endTime: "11:00",
-                modality: "Virtual",
-                instructor: "Lic. Walter Rolón",
-                location: "Microsoft Teams",
-            },
-            {
-                id: 2,
                 title: "Gestion administrativa e indicadores",
                 date: "2026-03-12",
                 displayDate: "12/03/2026",
@@ -33,7 +21,7 @@ class CalendarManager {
                 location: "Aula a confirmar",
             },
             {
-                id: 3,
+                id: 2,
                 title: "Aspectos legales de la practica profesional",
                 date: "2026-03-19",
                 displayDate: "19/03/2026",
@@ -45,7 +33,7 @@ class CalendarManager {
                 location: "Microsoft Teams",
             },
             {
-                id: 4,
+                id: 3,
                 title: "Gestion de cuidados de piel",
                 date: "2026-03-25",
                 displayDate: "25/03/2026",
@@ -57,7 +45,7 @@ class CalendarManager {
                 location: "Microsoft Teams",
             },
             {
-                id: 5,
+                id: 4,
                 title: "Gestion de vacaciones",
                 date: "2026-04-01",
                 displayDate: "01/04/2026",
