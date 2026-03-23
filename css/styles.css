@@ -1429,6 +1429,18 @@ body {
     animation: pulse 2s infinite;
 }
 
+.warning {
+    top: 10px;
+    right: 10px;
+    background: rgba(234, 67, 53, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 0.75em;
+    font-weight: bold;
+    animation: fadeIn 0.5s ease;
+}
+
 /* Clase próxima */
 .upcoming-class {
     border-left: 4px solid #FF9800 !important;
