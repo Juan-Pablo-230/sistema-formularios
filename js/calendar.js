@@ -10,18 +10,6 @@ class CalendarManager {
         return [
             {
                 id: 1,
-                title: "Gestion de cuidados de piel",
-                date: "2026-03-25",
-                displayDate: "25/03/2026",
-                time: "10:00",
-                displayTime: "10:00hs",
-                endTime: "11:00",
-                modality: "Virtual",
-                instructor: "Lic. Yesica Ceballos y Lic. Analía Garay",
-                location: "Microsoft Teams",
-            },
-            {
-                id: 2,
                 title: "Carro de paro",
                 date: "2026-03-27",
                 displayDate: "27/03/2026",
@@ -33,7 +21,7 @@ class CalendarManager {
                 location: "Microsoft Teams",
             },
             {
-                id: 3,
+                id: 2,
                 title: "Preparación Pre operatoria",
                 date: "2026-03-30",
                 displayDate: "30/03/2026",
@@ -45,7 +33,7 @@ class CalendarManager {
                 location: "Microsoft Teams",
             },
             {
-                id: 4,
+                id: 3,
                 title: "Notebook LM",
                 date: "2026-03-31",
                 displayDate: "31/03/2026",
@@ -57,7 +45,7 @@ class CalendarManager {
                 location: "Microsoft Teams",
             },
             {
-                id: 5,
+                id: 4,
                 title: "Gestion de vacaciones",
                 date: "2026-04-01",
                 displayDate: "01/04/2026",
@@ -69,7 +57,7 @@ class CalendarManager {
                 location: "Microsoft Teams",
             },
             {
-                id: 6,
+                id: 5,
                 title: "Vacte",
                 date: "2026-04-30",
                 displayDate: "30/04/2026",
