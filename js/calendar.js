@@ -10,18 +10,6 @@ class CalendarManager {
         return [
             {
                 id: 1,
-                title: "Preparación Pre operatoria",
-                date: "2026-03-30",
-                displayDate: "30/03/2026",
-                time: "18:55",
-                displayTime: "18:55hs",
-                endTime: "20:00",
-                modality: "Virtual",
-                instructor: "Dr. Dorado.",
-                location: "Microsoft Teams",
-            },
-            {
-                id: 2,
                 title: "Gestion de vacaciones",
                 date: "2026-04-08",
                 displayDate: "08/04/2026",
@@ -33,7 +21,7 @@ class CalendarManager {
                 location: "Microsoft Teams",
             },
             {
-                id: 3,
+                id: 2,
                 title: "Vacte",
                 date: "2026-04-30",
                 displayDate: "30/04/2026",
