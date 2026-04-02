@@ -707,62 +707,85 @@
     </script>
 
     <script>
-        async function cargarCarteleraIndex() {
-            const container = document.getElementById('carteleraContainer');
-            if (!container) return;
+    async function cargarCarteleraIndex() {
+        const container = document.getElementById('carteleraContainer');
+        if (!container) return;
 
-            if (!authSystem.isLoggedIn()) {
-                container.style.display = 'none';
-                return;
-            }
+        if (!authSystem.isLoggedIn()) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/cartelera/activos');
+            const result = await response.json();
             
-            try {
-                const response = await fetch('/api/cartelera/activos');
-                const result = await response.json();
+            if (result.success && result.data && result.data.length > 0) {
+                container.style.display = 'block';
                 
-                if (result.success && result.data && result.data.length > 0) {
-                    container.style.display = 'block';
-                    
-                    container.innerHTML = result.data.map(aviso => {
-                        let icono = '';
-                        switch(aviso.tipo) {
-                            case 'warning': icono = '⚠️'; break;
-                            case 'urgent': icono = '🔴'; break;
-                            case 'info': icono = 'ℹ️'; break;
+                // Función para convertir URLs en enlaces clickeables
+                function convertirUrlsEnEnlaces(texto) {
+                    if (!texto) return '';
+                    // Regex para detectar URLs (http, https, www)
+                    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+                    return texto.replace(urlRegex, (url) => {
+                        let href = url;
+                        if (!href.startsWith('http')) {
+                            href = 'https://' + href;
                         }
-                        
-                        const fecha = new Date(aviso.fechaCreacion).toLocaleDateString('es-AR');
-                        
-                        return `
-                            <div class="cartelera-aviso ${aviso.tipo}">
-                                <h3>${icono} ${escapeHtml(aviso.titulo)}</h3>
-                                <p>${escapeHtml(aviso.mensaje)}</p>
-                                <div class="aviso-fecha">📅 Publicado: ${fecha}</div>
-                            </div>
-                        `;
-                    }).join('');
-                } else {
-                    container.style.display = 'none';
+                        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: #4285f4; text-decoration: underline;">${url}</a>`;
+                    });
                 }
-            } catch (error) {
-                console.error('Error cargando cartelera:', error);
+
+                function escapeHtml(text) {
+                    if (!text) return '';
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                }
+                
+                container.innerHTML = result.data.map(aviso => {
+                    let icono = '';
+                    switch(aviso.tipo) {
+                        case 'warning': icono = '⚠️'; break;
+                        case 'urgent': icono = '🔴'; break;
+                        case 'info': icono = 'ℹ️'; break;
+                    }
+                    
+                    const fecha = new Date(aviso.fechaCreacion).toLocaleDateString('es-AR');
+                    const tituloEscapado = escapeHtml(aviso.titulo);
+                    const mensajeConEnlaces = convertirUrlsEnEnlaces(aviso.mensaje);
+                    
+                    return `
+                        <div class="cartelera-aviso ${aviso.tipo}">
+                            <h3>${icono} ${tituloEscapado}</h3>
+                            <p>${mensajeConEnlaces}</p>
+                            <div class="aviso-fecha">📅 Publicado: ${fecha}</div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
                 container.style.display = 'none';
             }
+        } catch (error) {
+            console.error('Error cargando cartelera:', error);
+            container.style.display = 'none';
         }
+    }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
+        cargarCarteleraIndex();
+        document.addEventListener('userLoggedIn', () => {
             cargarCarteleraIndex();
-            document.addEventListener('userLoggedIn', () => {
-                cargarCarteleraIndex();
-            });
         });
-    </script>
+    });
+</script>
 </body>
 </html>
